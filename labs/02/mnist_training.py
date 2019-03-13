@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+#bfc95faa-444e-11e9-b0fd-00505601122b
+#3da961ed-4364-11e9-b0fd-00505601122b
+
 import argparse
 import datetime
 import os
@@ -64,15 +67,44 @@ model = tf.keras.Sequential([
 
 optimizer = None
 if args.optimizer == "Adam":
-    optimizer = tf.keras.optimizers.Adam()
+    if args.decay:
+        if args.decay == "exponential":
+            rate = np.exp(np.log(args.learning_rate_final/args.learning_rate)/(args.epochs*args.batch_size-1))
+            print("rate", rate)
+            learning_rate_fn = tf.keras.optimizers.schedules.ExponentialDecay(
+            args.learning_rate,
+            args.epochs*args.batch_size,
+            decay_rate=rate)
+        elif args.decay == "polynomial":
+            learning_rate_fn = tf.keras.optimizers.schedules.PolynomialDecay(
+            args.learning_rate,
+            args.epochs*args.batch_size,
+            args.learning_rate_final)
+        optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate_fn)
+    else:
+        optimizer = tf.keras.optimizers.Adam(lr=args.learning_rate)
 elif args.optimizer == "SGD":
-    pass
+    if args.decay:
+        if args.decay == "exponential":
+            rate = np.exp(np.log(args.learning_rate_final/args.learning_rate)/(args.epochs*args.batch_size-1))
+            print("rate", rate)
+            learning_rate_fn = tf.keras.optimizers.schedules.ExponentialDecay(
+            args.learning_rate,
+            args.epochs*args.batch_size,
+            decay_rate=rate)
+        elif args.decay == "polynomial":
+            learning_rate_fn = tf.keras.optimizers.schedules.PolynomialDecay(
+            args.learning_rate,
+            args.epochs*args.batch_size,
+            args.learning_rate_final)
+        optimizer = tf.keras.optimizers.SGD(momentum=args.momentum,learning_rate=learning_rate_fn)
+    else:
+        optimizer = tf.keras.optimizers.SGD(momentum=args.momentum, lr=args.learning_rate)
 model.compile(
     optimizer=optimizer,
     loss=tf.keras.losses.SparseCategoricalCrossentropy(),
     metrics=[tf.keras.metrics.SparseCategoricalAccuracy()],
 )
-
 tb_callback=tf.keras.callbacks.TensorBoard(args.logdir, histogram_freq=1, update_freq=1000, profile_batch=1)
 tb_callback.on_train_end = lambda *_: None
 model.fit(
