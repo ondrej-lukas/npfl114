@@ -32,11 +32,11 @@ tf.config.threading.set_inter_op_parallelism_threads(args.threads)
 tf.config.threading.set_intra_op_parallelism_threads(args.threads)
 
 # Create logdir name
-args.logdir = "logs/{}-{}-{}".format(
+args.logdir = os.path.join("logs","{}-{}-{}".format(
     os.path.basename(__file__),
     datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S"),
     ",".join(("{}={}".format(re.sub("(.)[^_]*_?", r"\1", key), value) for key, value in sorted(vars(args).items())))
-)
+))
 
 # Load data
 mnist = MNIST()
@@ -62,8 +62,13 @@ model = tf.keras.Sequential([
 # by using `model.optimizer.learning_rate(model.optimizer.iterations)`,
 # so after training this value should be `args.learning_rate_final`.
 
+optimizer = None
+if args.optimizer == "Adam":
+    optimizer = tf.keras.optimizers.Adam()
+elif args.optimizer == "SGD":
+    pass
 model.compile(
-    optimizer=None,
+    optimizer=optimizer,
     loss=tf.keras.losses.SparseCategoricalCrossentropy(),
     metrics=[tf.keras.metrics.SparseCategoricalAccuracy()],
 )
@@ -83,5 +88,6 @@ test_logs = model.evaluate(
 tb_callback.on_epoch_end(1, dict(("val_test_" + metric, value) for metric, value in zip(model.metrics_names, test_logs)))
 
 # TODO: Write test accuracy as percentages rounded to two decimal places.
+accuracy = test_logs[1]
 with open("mnist_training", "w") as out_file:
     print("{:.2f}".format(100 * accuracy), file=out_file)
