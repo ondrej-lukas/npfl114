@@ -73,12 +73,12 @@ if args.optimizer == "Adam":
             print("rate", rate)
             learning_rate_fn = tf.keras.optimizers.schedules.ExponentialDecay(
             args.learning_rate,
-            args.epochs*args.batch_size,
+            args.epochs,
             decay_rate=rate)
         elif args.decay == "polynomial":
             learning_rate_fn = tf.keras.optimizers.schedules.PolynomialDecay(
             args.learning_rate,
-            args.epochs*args.batch_size,
+            args.epochs,
             args.learning_rate_final)
         optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate_fn)
     else:
@@ -90,16 +90,23 @@ elif args.optimizer == "SGD":
             print("rate", rate)
             learning_rate_fn = tf.keras.optimizers.schedules.ExponentialDecay(
             args.learning_rate,
-            args.epochs*args.batch_size,
+            args.epochs,
             decay_rate=rate)
         elif args.decay == "polynomial":
             learning_rate_fn = tf.keras.optimizers.schedules.PolynomialDecay(
             args.learning_rate,
-            args.epochs*args.batch_size,
+            args.epochs,
             args.learning_rate_final)
-        optimizer = tf.keras.optimizers.SGD(momentum=args.momentum,learning_rate=learning_rate_fn)
+        #ptimizer = tf.keras.optimizers.SGD(momentum=args.momentum,learning_rate=learning_rate_fn)
+        if args.momentum:
+            optimizer = tf.keras.optimizers.SGD(momentum=args.momentum,learning_rate=learning_rate_fn)
+        else:
+            optimizer = tf.keras.optimizers.SGD(learning_rate=learning_rate_fn)
     else:
-        optimizer = tf.keras.optimizers.SGD(momentum=args.momentum, lr=args.learning_rate)
+        if args.momentum:
+            optimizer = tf.keras.optimizers.SGD(momentum=args.momentum, lr=args.learning_rate)
+        else:
+            optimizer = tf.keras.optimizers.SGD(lr=args.learning_rate)
 model.compile(
     optimizer=optimizer,
     loss=tf.keras.losses.SparseCategoricalCrossentropy(),
