@@ -12,9 +12,9 @@ import tensorflow as tf
 # Parse arguments
 # TODO: Set reasonable defaults and possibly add more arguments.
 parser = argparse.ArgumentParser()
-parser.add_argument("--batch_size", default=10, type=int, help="Batch size.")
-parser.add_argument("--epochs", default=250, type=int, help="Number of epochs.")
-parser.add_argument("--threads", default=1, type=int, help="Maximum number of threads to use.")
+parser.add_argument("--batch_size", default=10, type=int, help="Batch size.") # 10
+parser.add_argument("--epochs", default=350, type=int, help="Number of epochs.") # 250
+parser.add_argument("--threads", default=1, type=int, help="Maximum number of threads to use.") # 1
 args = parser.parse_args()
 
 # Fix random seeds
@@ -42,11 +42,17 @@ observations, labels = np.array(observations), np.array(labels)
 # # However, beware that there is currently a bug in Keras which does
 # # not correctly serialize InputLayer. Instead of using an InputLayer,
 # # pass explicitly `input_shape` to the first real model layer.
+# model = tf.keras.Sequential([
+#     tf.keras.layers.Dense(4, activation=tf.nn.relu, input_shape=(4,)),
+#     tf.keras.layers.Dense(20, activation=tf.nn.relu),
+#     tf.keras.layers.Dense(80, activation=tf.nn.relu),
+#     tf.keras.layers.Dense(40, activation=tf.nn.relu),
+#     tf.keras.layers.Dense(2, activation=tf.nn.softmax)]
+# )
+
 model = tf.keras.Sequential([
-    tf.keras.layers.Dense(4, activation=tf.nn.relu, input_shape=(4,)),
-    tf.keras.layers.Dense(20, activation=tf.nn.relu),
-    tf.keras.layers.Dense(80, activation=tf.nn.relu),
-    tf.keras.layers.Dense(40, activation=tf.nn.relu),
+    tf.keras.layers.Dense(32, activation=tf.nn.sigmoid, input_shape=(4,)),
+    tf.keras.layers.Dense(128, activation=tf.nn.relu),
     tf.keras.layers.Dense(2, activation=tf.nn.softmax)]
 )
 
@@ -56,10 +62,7 @@ model.compile(
     metrics=[tf.keras.metrics.SparseCategoricalAccuracy()],
 )
 
-# tb_callback=tf.keras.callbacks.TensorBoard(args.logdir)
-model.fit(observations, labels, batch_size=args.batch_size, epochs=args.epochs)#, callbacks=[tb_callback])
-
-
-
+tb_callback=tf.keras.callbacks.TensorBoard(args.logdir)
+model.fit(observations, labels, batch_size=args.batch_size, epochs=args.epochs, callbacks=[tb_callback])
 
 model.save("gym_cartpole_model.h5", include_optimizer=False)
