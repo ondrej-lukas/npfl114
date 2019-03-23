@@ -13,7 +13,7 @@ import tensorflow as tf
 # TODO: Set reasonable defaults and possibly add more arguments.
 parser = argparse.ArgumentParser()
 parser.add_argument("--batch_size", default=10, type=int, help="Batch size.") # 10
-parser.add_argument("--epochs", default=1000, type=int, help="Number of epochs.") # 250, best with 350
+parser.add_argument("--epochs", default=550, type=int, help="Number of epochs.") # 250, best with 350
 parser.add_argument("--threads", default=1, type=int, help="Maximum number of threads to use.") # 1
 args = parser.parse_args()
 
@@ -24,7 +24,8 @@ tf.config.threading.set_inter_op_parallelism_threads(args.threads)
 tf.config.threading.set_intra_op_parallelism_threads(args.threads)
 
 # Create logdir name
-args.logdir = os.path.join("logs","{}-{}-{}".format(
+args.logdir = os.path.join("logs", "{}-{}-{}".format(
+
     os.path.basename(__file__),
     datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S"),
     ",".join(("{}={}".format(re.sub("(.)[^_]*_?", r"\1", key), value) for key, value in sorted(vars(args).items())))
@@ -60,7 +61,7 @@ observations, labels = np.array(observations), np.array(labels)
 
 # THE BESTEST
 model = tf.keras.Sequential([
-    tf.keras.layers.Dense(16, activation=tf.nn.tanh, input_shape=(4,)),
+    tf.keras.layers.Dense(24, activation=tf.nn.tanh, input_shape=(4,)),
     tf.keras.layers.Dense(2, activation=tf.nn.softmax)]
 )
 
