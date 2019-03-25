@@ -18,7 +18,7 @@ parser.add_argument("--dropout", default=0, type=float, help="Dropout regulariza
 parser.add_argument("--epochs", default=30, type=int, help="Number of epochs.")
 parser.add_argument("--hidden_layers", default="500", type=str, help="Hidden layer configuration.")
 parser.add_argument("--l2", default=0, type=float, help="L2 regularization.")
-parser.add_argument("--label_smoothing", default=0.3, type=float, help="Label smoothing.")
+parser.add_argument("--label_smoothing", default=0, type=float, help="Label smoothing.")
 parser.add_argument("--recodex", default=False, action="store_true", help="Evaluation in ReCodEx.")
 parser.add_argument("--threads", default=1, type=int, help="Maximum number of threads to use.")
 args = parser.parse_args()
@@ -75,19 +75,19 @@ model.add(tf.keras.layers.Dense(MNIST.LABELS,kernel_regularizer=regularizer,bias
 # to a full categorical distribution (you can use either NumPy or there is
 # a helper method also in the Keras API).
 
-if args.label_smoothing != 0.0:
-    train_labels = tf.one_hot(mnist.train.data["labels"], depth=mnist.LABELS)
+if args.label_smoothing > 0.0:
+    train_labels = tf.keras.utils.to_categorical(mnist.train.data['labels'],num_classes=10)
     mnist.train.data["labels"] = train_labels
 
-    test_labels = tf.one_hot(mnist.test.data["labels"], depth=mnist.LABELS)
+    test_labels = tf.keras.utils.to_categorical(mnist.test.data['labels'],num_classes=10)
     mnist.test.data["labels"] = test_labels
 
-    dev_labels = tf.one_hot(mnist.dev.data["labels"], depth=mnist.LABELS)
+    dev_labels = tf.keras.utils.to_categorical(mnist.dev.data['labels'],num_classes=10)
     mnist.dev.data["labels"] = dev_labels
 
     model.compile(
         optimizer=tf.keras.optimizers.Adam(),
-        loss=tf.keras.losses.CategoricalCrossentropy(label_smoothing=args.label_smoothing),
+        loss=tf.losses.CategoricalCrossentropy(from_logits=True,label_smoothing=args.label_smoothing),
         metrics=[tf.keras.metrics.CategoricalAccuracy(name="accuracy")],
     )
 else:
