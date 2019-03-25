@@ -8,6 +8,14 @@ import tensorflow as tf
 
 from mnist import MNIST
 
+
+def ensemble_models(models, m_input):
+    inputs = tf.keras.layers.Input(shape=[MNIST.H, MNIST.W, MNIST.C])
+    y_models = [model(inputs) for model in models]
+    average_y = tf.keras.layers.Average()(y_models)
+    ensemble_model = tf.keras.Model(inputs=inputs, outputs=average_y)
+    return ensemble_model
+
 # Parse arguments
 parser = argparse.ArgumentParser()
 parser.add_argument("--batch_size", default=50, type=int, help="Batch size.")
@@ -57,7 +65,7 @@ with open("mnist_ensemble.out", "w") as out_file:
     for model in range(args.models):
         # TODO: Compute the accuracy on the dev set for
         # the individual `models[model]`.
-        individual_accuracy = None
+        individual_accuracy =  models[model].evaluate(x=mnist.dev.data["images"], y=mnist.dev.data["labels"])[1]
 
         # TODO: Compute the accuracy on the dev set for
         # the ensemble `models[0:model+1].
@@ -75,7 +83,18 @@ with open("mnist_ensemble.out", "w") as out_file:
         #    and instead call `model.predict` on individual models and
         #    average the results. To measure accuracy, either do it completely
         #    manually or use tf.keras.metrics.SparseCategoricalAccuracy.
-        ensemble_accuracy = None
+        #print(len(models[0:model+1]))
+        if model > 0:
+            ensemble = ensemble_models(models[0:model+1],mnist.dev.data["images"])
+            ensemble.compile(
+            loss=tf.keras.losses.SparseCategoricalCrossentropy(),
+            optimizer=tf.keras.optimizers.Adam(),
+            metrics=[tf.keras.metrics.SparseCategoricalAccuracy(name="ensemble_accuracy")],)
+            ensemble_accuracy = ensemble.evaluate(x=mnist.dev.data["images"], y=mnist.dev.data["labels"])[1]
+            #print(ensemble_accuracy)
+        else:
+            ensemble_accuracy = individual_accuracy
+            #print(ensemble_accuracy)
 
         # Print the results.
         print("{:.2f} {:.2f}".format(100 * individual_accuracy, 100 * ensemble_accuracy), file=out_file)
