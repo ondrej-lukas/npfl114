@@ -62,7 +62,6 @@ print("Data loaded")
 # - Alternatively, you can use `tf.keras.layers.Embedding`, which is an efficient
 #   implementation of one-hot encoding followed by a Dense layer, and flatten afterwards.
 
-
 model = tf.keras.Sequential([
     tf.keras.layers.InputLayer(input_shape=[2 * args.window + 1], dtype=tf.int32),
     tf.keras.layers.Lambda(lambda x: tf.one_hot(x, len(uppercase_data.train.alphabet))),
