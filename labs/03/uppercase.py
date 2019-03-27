@@ -17,11 +17,11 @@ from uppercase_data import UppercaseData
 # Parse arguments
 parser = argparse.ArgumentParser()
 parser.add_argument("--alphabet_size", default=50, type=int, help="If nonzero, limit alphabet to this many most frequent chars.")
-parser.add_argument("--batch_size", default=250, type=int, help="Batch size.")
-parser.add_argument("--epochs", default=10, type=int, help="Number of epochs.")
+parser.add_argument("--batch_size", default=1000, type=int, help="Batch size.")
+parser.add_argument("--epochs", default=25, type=int, help="Number of epochs.")
 parser.add_argument("--hidden_layers", default="500", type=str, help="Hidden layer configuration.")
 parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
-parser.add_argument("--window", default=30, type=int, help="Window size to use.")
+parser.add_argument("--window", default=10, type=int, help="Window size to use.")
 args = parser.parse_args()
 args.hidden_layers = [int(hidden_layer) for hidden_layer in args.hidden_layers.split(",") if hidden_layer]
 
@@ -43,7 +43,7 @@ uppercase_data = UppercaseData(args.window, args.alphabet_size)
 print("Data loaded")
 
 # TODO: Implement a suitable model, optionally including regularization, select
-# good hyperparameters and train the model.
+# 40od hyperparameters and train the model.
 #
 # The inputs are _windows_ of fixed size (`args.window` characters on left,
 # the character in question, and `args.window` characters on right), where
@@ -66,11 +66,12 @@ model = tf.keras.Sequential([
     tf.keras.layers.InputLayer(input_shape=[2 * args.window + 1], dtype=tf.int32),
     tf.keras.layers.Lambda(lambda x: tf.one_hot(x, len(uppercase_data.train.alphabet))),
     tf.keras.layers.Flatten(),
-    tf.keras.layers.Dense(units=256,activation=tf.nn.relu),
+    tf.keras.layers.Dense(units=40,activation=tf.nn.relu),
+    tf.keras.layers.Dropout(0.5),
+    tf.keras.layers.Dense(units=500,activation=tf.nn.relu),
+    tf.keras.layers.Dropout(0.5),
+    tf.keras.layers.Dense(units=100,activation=tf.nn.relu),
     tf.keras.layers.Dropout(0.3),
-    tf.keras.layers.Dense(units=32,activation=tf.nn.relu),
-    tf.keras.layers.Dropout(0.3),
-    tf.keras.layers.Dense(units=16,activation=tf.nn.relu),
     tf.keras.layers.Dense(units=2,activation=tf.nn.softmax),
 ])
 
