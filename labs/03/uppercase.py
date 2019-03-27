@@ -17,8 +17,8 @@ from uppercase_data import UppercaseData
 # Parse arguments
 parser = argparse.ArgumentParser()
 parser.add_argument("--alphabet_size", default=50, type=int, help="If nonzero, limit alphabet to this many most frequent chars.")
-parser.add_argument("--batch_size", default=250, type=int, help="Batch size.")
-parser.add_argument("--epochs", default=10, type=int, help="Number of epochs.")
+parser.add_argument("--batch_size", default=500, type=int, help="Batch size.")
+parser.add_argument("--epochs", default=5, type=int, help="Number of epochs.")
 parser.add_argument("--hidden_layers", default="500", type=str, help="Hidden layer configuration.")
 parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
 parser.add_argument("--window", default=30, type=int, help="Window size to use.")
@@ -67,7 +67,7 @@ model = tf.keras.Sequential([
     tf.keras.layers.Lambda(lambda x: tf.one_hot(x, len(uppercase_data.train.alphabet))),
     tf.keras.layers.Flatten(),
     tf.keras.layers.Dense(units=256,activation=tf.nn.relu),
-    tf.keras.layers.Dropout(0.3),
+    tf.keras.layers.Dropout(0.5),
     tf.keras.layers.Dense(units=32,activation=tf.nn.relu),
     tf.keras.layers.Dropout(0.3),
     tf.keras.layers.Dense(units=16,activation=tf.nn.relu),
