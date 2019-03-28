@@ -67,7 +67,7 @@ class Network(tf.keras.Model):
             elif tmp[0] == "F":
                 hidden = tf.keras.layers.Flatten()(hidden)
             elif tmp[0] == "D":
-                hidden = tf.keras.layers.Dense(int(tmp[1]))(hidden)
+                hidden = tf.keras.layers.Dense(int(tmp[1]),activation="relu")(hidden)
             print("Adding:",hidden)
 
         # Add the final output layer
