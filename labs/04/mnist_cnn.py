@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
+#bfc95faa-444e-11e9-b0fd-00505601122b
+#3da961ed-4364-11e9-b0fd-00505601122b
 import numpy as np
 import tensorflow as tf
-
+import re
 from mnist import MNIST
 
 # The neural network model
@@ -23,6 +25,50 @@ class Network(tf.keras.Model):
         # - `F`: Flatten inputs. Must appear exactly once in the architecture.
         # - `D-hidden_layer_size`: Add a dense layer with ReLU activation and specified size.
         # Produce the results in variable `hidden`.
+
+        hidden = inputs
+        for item in re.split(r',(?![^\[]*\])', args.cnn):
+            tmp = item.split("-")
+            if tmp[0] == "C":
+                filters = int(tmp[1])
+                kernel_size = int(tmp[2])
+                stride = int(tmp[3])
+                padding = tmp[4].lower()
+    
+                hidden = tf.keras.layers.Conv2D(filters=filters, kernel_size=(kernel_size,kernel_size), strides=(stride,stride), padding=padding, activation="relu")(hidden)
+            elif tmp[0] == "CB":
+                filters = int(tmp[1])
+                kernel_size = int(tmp[2])
+                stride = int(tmp[3])
+                padding = tmp[4].lower()
+
+                hidden = tf.keras.layers.Conv2D(filters=filters,kernel_size=(kernel_size,kernel_size), strides=(stride,stride), padding=padding, activation=None, use_bias=False)(hidden)
+                hidden = tf.keras.layers.BatchNormalization()(hidden)
+                hidden = tf.keras.activations.relu(hidden)
+            elif tmp[0] == "M":
+                pool_size = int(tmp[1])
+                stride = int(tmp[2])
+                hidden = tf.keras.layers.MaxPool2D(pool_size=(pool_size, pool_size), strides=(stride, stride))(hidden)
+            elif tmp[0] == "R":
+                #get the layers R-[l1,l2,...]
+                layers = item.split('-', 1)[1]
+                layers = layers[1:-1]
+                layers = layers.split(",")
+                out = hidden
+                for l in layers:
+                    setup = l.split("-")
+                    filters = int(setup[1])
+                    kernel_size = int(setup[2])
+                    stride = int(setup[3])
+                    padding = setup[4]
+                
+                    out = tf.keras.layers.Conv2D(filters=filters, kernel_size=(kernel_size,kernel_size), strides=(stride,stride), padding=padding, activation="relu")(out)
+                hidden = tf.keras.layers.add([out, hidden])
+            elif tmp[0] == "F":
+                hidden = tf.keras.layers.Flatten()(hidden)
+            elif tmp[0] == "D":
+                hidden = tf.keras.layers.Dense(int(tmp[1]))(hidden)
+            print("Adding:",hidden)
 
         # Add the final output layer
         outputs = tf.keras.layers.Dense(MNIST.LABELS, activation=tf.nn.softmax)(hidden)
