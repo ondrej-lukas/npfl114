@@ -52,11 +52,9 @@ class Network(tf.keras.Model):
             elif tmp[0] == "R":
                 #get the layers R-[l1,l2,...]
                 layers = item.split('-', 1)[1]
-                
                 layers = layers[1:-1]
-                
                 layers = layers.split(",")
-                outputs = []
+                out = hidden
                 for l in layers:
                     setup = l.split("-")
                     filters = int(setup[1])
@@ -64,17 +62,13 @@ class Network(tf.keras.Model):
                     stride = int(setup[3])
                     padding = setup[4]
                 
-                    out = tf.keras.layers.Conv2D(filters=filters, kernel_size=(kernel_size,kernel_size), strides=(stride,stride), padding=padding, activation="relu")(hidden)
-                    outputs.append(tf.keras.layers.add([out,hidden]))
-                if len(outputs) > 1:
-                    hidden = tf.keras.layers.concatenate(outputs)
-                else:
-                    hidden = outputs[0]
+                    out = tf.keras.layers.Conv2D(filters=filters, kernel_size=(kernel_size,kernel_size), strides=(stride,stride), padding=padding, activation="relu")(out)
+                hidden = tf.keras.layers.add([out, hidden])
             elif tmp[0] == "F":
                 hidden = tf.keras.layers.Flatten()(hidden)
             elif tmp[0] == "D":
                 hidden = tf.keras.layers.Dense(int(tmp[1]))(hidden)
-
+            print("Adding:",hidden)
 
         # Add the final output layer
         outputs = tf.keras.layers.Dense(MNIST.LABELS, activation=tf.nn.softmax)(hidden)
