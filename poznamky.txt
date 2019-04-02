@@ -114,7 +114,15 @@ Cviceni 5
 ---------
 - mnist_multiple
 	- two digits, first larger than second?
-
+	- keras cannot generate two outputs 
+	- run both images through the network, 
+		predict both images separately or put them in one vector (v zadani)
+- fashion masks 
+	- harder than mnist 
+	- modified data set -> harder to get the placement 
+	- generate mask 
+	- trva to docela dlouho...trenoval to asi hodinu 
+	- odevzdat python file a text file zase... 
 
 
 
