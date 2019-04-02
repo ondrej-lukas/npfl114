@@ -1,0 +1,136 @@
+empiricka distribuce - odhad distribuce dat 	
+negative log likelyhood = cross entropy 
+gradient je smernice tecny
+exponentialy weighted average - zapominam stary bety 
+
+Cviceni 
+-------
+- prejit na tensorflow 2.0 (achjo...)
+
+Prednaska 3 
+-----------
+vahy = kernel (v kerasu) 
+- regularizace -> potreba spis na malejch datech, slozitejch problemech 
+
+L2 regularizace
+- nic moc
+- citliva na lambdy 
+
+Dropout 
+- regularizace 
+
+Inicializace vah 
+- random v nejakym intervalu 
+- Xavier Glorot -> asi nejlepsi standard 
+
+Cviceni 3
+---------
+- keras umi aktivacni funkci ve stringu
+- binarycrossentropy loss -> 1 sigmoid neuron na outputu 
+- sparse -> labely jsou v distribuci 
+- nekde neni potreba explicitne dat na posledni vrstvu softmax 
+	-> loss na posledni vrstve softmax
+	- v kerasu se to tak upee nedela 
+	- loss predpoklada, ze dostane distribuci 
+ 	- ale da se tam dat from_logits=True (coz udela to samy...) ale z modelu pak nepada distribuce
+	- vysledek je stejnej 
+- example_keras_functional.py 
+
+Regularization 
+- dropout
+	- after dense layer 
+	- not after output layer 
+- L2
+	- regularizer L1L2 
+	- regularizes everything, everywhere
+	- necpat tam args.l2 == 0 -> crashne to 
+- label smoothing
+	- use categorical cross entropy and accuracy 
+ 	- format of labels in data must be changed 
+	- generate whole dist of labels and pass it to model 
+		0000010000 instead of 5 -> generate one-hot encoding 
+
+Ensamble 
+- template trains models 
+- perform ensambling 
+- measure individual accuracy on dev data for every model 
+- measure accuracy of all sequences of models -> 1, 1-2, 1-3, 1-4, ...
+- accuracy of ensamble 
+	- manually -> average the outputs 
+	- use keras for the ensambling 
+		- uses models, average layer
+		- can use evaluate on it 
+
+Uppercase 
+- NLP task 
+- correctly capitalize given text (names, new sentences, cities, etc.)
+- one .txt file, one .py file 
+- pass baseline 96.5% 
+- possible unknown elements 
+- alphabet size can be set 
+- window -> size of input around the picked character	
+	- output 0/1 
+
+Cviceni 4
+---------
+cartpole
+- little training data -> model needs to be regularized
+- task is linearly separable -> simple layer is enough
+- I could generate more data -> data augmentation 
+
+mnist_cnn
+- Conv2D - tri prdele argumentu, relu 
+- CB - convolution with batch norm
+	run conv layer, no activation, no biases
+	run batch normalization (is a layer, I don't need to set any params)
+	apply relu 
+	(I need 3 layers) 
+- maxpool - kernel_size, stride
+	maxpool2D layer
+- residual connections - hlidat velikosti outputu
+	nejde pouzit sequential model -> functional API 
+	
+cifar_competition
+- small dataset
+- 32x32 coloured images
+- data augmentation - image data generator in keras (has flips)
+
+Prednaska 5
+------------
+- cutout - jak dropout ale na vstupni vrstve 
+	- vyrezu proste ctverec (ale sousedici ctverec)
+- dropblock - prej taky celkem dobrej... 
+- RoI pooling - divnej pooling
+	- najdu region of insterest -> mapuju to na ten hlavni image 
+	- regresi se da spocitat kde ten region of interest je 
+	- pouziva se Huber loss (neco mezi L1 a L2) 
+- intersection over union -> kdyz mam vic regionu pro 2 tridu, spocitam si intersection a doplnek 
+	- cim vic jsou podobny tim vetsi bude hodnota (same = 1) 
+- non-maximum supression - musim nejak pospojovat ty regiony s vecma, co maji bejt to samy
+	- ja dostanu pravdepodobnosti toho ze to je trida i ze tam fakt ta vec je 
+	- kdyz se protinam s nekym jistejsim, tak se smazu 
+
+Cviceni 5
+---------
+- mnist_multiple
+	- two digits, first larger than second?
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
