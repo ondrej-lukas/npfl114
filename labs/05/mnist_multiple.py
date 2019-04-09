@@ -28,7 +28,28 @@ class Network:
         #
         # Train the outputs using SparseCategoricalCrossentropy for the first two inputs
         # and BinaryCrossentropy for the third one, utilizing Adam with default arguments.
-        pass
+
+        #process the first image
+        inputs1 = tf.keras.layers.Input(shape=shape=[MNIST.H, MNIST.W, MNIST.C])
+        inputs2 = tf.keras.layers.Input(shape=shape=[MNIST.H, MNIST.W, MNIST.C])
+
+        hidden1 = tf.keras.layers.Conv2D(filters=10, kernel_size=(3,3), strides=(2,2), padding="valid", activation="relu")
+        hidden2= tf.keras.layers.Conv2D(filters=20, kernel_size=(3,3), strides=(2,2), padding="valid", activation="relu")
+        flatten = tf.keras.layers.Flatten()
+        fc = tf.keras.layers.Dense(200, activation="relu")
+        out = tf.keras.layers.Dense(10, activation="softmax")
+        c1 = out(fc(flatten(hidden2(hidden1(inputs1)))))
+        c2 = out(fc(flatten(hidden2(hidden1(inputs2)))))
+        concat = tf.keras.layers.Concatenate()([c1,c2])
+        merged_fc = tf.keras.layers.Dense(200,activation="relu")(concat)
+        prediction = tf.keras.layers.Dense(1, activation="sigmoid")(merged_fc)
+
+        super().__init__(inputs=[inputs1, inputs2], outputs=[c1,c2,prediction])
+        #create model
+        self.compile(optimizer=tf.keras.optimizers.Adam(),
+              loss=[tf.keras.losses.SparseCategoricalCrossentropy(),tf.keras.losses.SparseCategoricalCrossentropy(),tf.keras.losses.BinaryCrossentropy()],
+              metrics=['accuracy'])
+
 
     @staticmethod
     def _prepare_batches(batches_generator):
@@ -44,7 +65,7 @@ class Network:
         for epoch in range(args.epochs):
             # TODO: Train for one epoch using `model.train_on_batch` for each batch.
             for batch in self._prepare_batches(mnist.train.batches(args.batch_size)):
-                pass
+                self.train_on_batch(batch)
 
             # Print development evaluation
             print("Dev {}: directly predicting: {:.4f}, comparing digits: {:.4f}".format(epoch + 1, *self.evaluate(mnist.dev, args)))
