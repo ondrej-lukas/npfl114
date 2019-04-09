@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+#bfc95faa-444e-11e9-b0fd-00505601122b
+#3da961ed-4364-11e9-b0fd-00505601122b
 import numpy as np
 import tensorflow as tf
 
@@ -43,22 +45,33 @@ class Dataset:
 class Network:
     def __init__(self, args):
         sequences = tf.keras.layers.Input(shape=[args.sequence_length, args.sequence_dim])
+
         # TODO: Process the sequence using the given `args.rnn_cell` RNN cell,
         # with dimensionality `args.rnn_cell_dim`. Use `return_sequences=True`
         # to get outputs for all sequence elements.
-
+        if args.rnn_cell == "SimpleRNN"
         # TODO: If `args.hidden_layer` is defined, process the result using
         # a ReLU-activated fully connected layer with `args.hidden_layer` units.
+        elif args.rnn_cell == "LSTM":
+            pass
+        elif args.rnn_cell == "GRU":
+            pass
 
+        if args.hidden_layer:
+            sequences = tf.keras.Dense(int(args.hidden_layer), activation="relu")(sequences)
         # TODO: Generate predictions using a fully connected layer
         # with one output and `tf.nn.sigmoid` activation.
+        predictions = tf.keras.Dense(1,activation="sigmoid")(sequences)
         self.model = tf.keras.Model(inputs=sequences, outputs=predictions)
 
         # TODO: Create an Adam optimizer in self._optimizer
+        self._optimizer = tf.keras.optimizers.Adam()
         # TODO: Create a suitable loss in self._loss
+        self._loss = None
         # TODO: Create two metrics in self._metrics dictionary:
         #  - "loss", which is tf.metrics.Mean()
         #  - "accuracy", which is suitable accuracy
+        
         # TODO: Create a summary file writer using `tf.summary.create_file_writer`.
         # I usually add `flush_millis=10 * 1000` arguments to get the results reasonably quickly.
 
