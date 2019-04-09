@@ -124,6 +124,31 @@ Cviceni 5
 	- trva to docela dlouho...trenoval to asi hodinu 
 	- odevzdat python file a text file zase... 
 
+Prednaska 6
+-----------
+- upscaling convolution -> stride < 1 
+	- = transponovana konvoluce 
+- LSTM
+
+Cviceni 6
+---------
+- tf.hub 
+	- using trained networks 
+- caltech42 competition 
+	- images in 42 classes
+	- not same size of all images 
+	- we can use mobilenet 
+	- at least 94% accuracy 
+	- cca 45 images per category in train set 
+ 	- 5 per category in dev set 
+	- 10 per test set 
+	- mobilenet can be trainable -> marks the weights
+- sequence 
+	- RNNs 
+	- uplne me nezajima zadnej dropout a tak 
+	- LSTM cell - faster on GPUs 
+	- 
+
 
 
 
