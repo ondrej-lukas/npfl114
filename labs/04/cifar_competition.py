@@ -12,14 +12,15 @@ import requests
 
 
 class SlackCallback(tf.keras.callbacks.Callback):
-    def __init__(self, channel='#hulk'):
+    def __init__(self,user ,channel='#hulk'):
+        self.user = user
         super(SlackCallback, self).__init__()
         
     
     def on_train_end(self, logs=None):
         #Report best results and plot losses
         #self.send_message(f'Job started by{self.user} finished at: {time.time()}')
-        r = requests.post("https://hooks.slack.com/services/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", data={"payload":"{\"channel\": \"#hulk\", \"username\": \"TensorBot\", \"text\": \"Job finished.\", \"icon_emoji\": \":hulk:\"}"})
+        r = requests.post("https://hooks.slack.com/services/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", data={"payload":"{\"channel\": \"#hulk\", \"username\": \"TensorBot\", \"text\": \"Job started by {} has finished.\", \"icon_emoji\": \":hulk:\"}".format(self.user)})
 
 
 
