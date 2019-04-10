@@ -7,7 +7,7 @@ import tensorflow as tf
 from mnist import MNIST
 
 # The neural network model
-class Network:
+class Network(tf.keras.Model):
     def __init__(self, args):
         # TODO: Add a `self.model` which has two inputs, both images of size [MNIST.H, MNIST.W, MNIST.C].
         # It then passes each input image through the same network (with shared weights), performing
@@ -30,8 +30,8 @@ class Network:
         # and BinaryCrossentropy for the third one, utilizing Adam with default arguments.
 
         #process the first image
-        inputs1 = tf.keras.layers.Input(shape=shape=[MNIST.H, MNIST.W, MNIST.C])
-        inputs2 = tf.keras.layers.Input(shape=shape=[MNIST.H, MNIST.W, MNIST.C])
+        inputs1 = tf.keras.layers.Input(shape=[MNIST.H, MNIST.W, MNIST.C])
+        inputs2 = tf.keras.layers.Input(shape=[MNIST.H, MNIST.W, MNIST.C])
 
         hidden1 = tf.keras.layers.Conv2D(filters=10, kernel_size=(3,3), strides=(2,2), padding="valid", activation="relu")
         hidden2= tf.keras.layers.Conv2D(filters=20, kernel_size=(3,3), strides=(2,2), padding="valid", activation="relu")
@@ -58,6 +58,8 @@ class Network:
             batches.append(batch)
             if len(batches) >= 2:
                 # TODO: yield the suitable modified inputs and targets using batches[0:2]
+                model_inputs = ...
+                model_outputs = ...
                 yield (model_inputs, model_targets)
                 batches.clear()
 
@@ -74,9 +76,9 @@ class Network:
         # TODO: Evaluate the given dataset, returning two accuracies, the first being
         # the direct prediction of the model, and the second computed by comparing predicted
         # labels of the images.
+        direct_accuracy = 0
+        indirect_accuracy = 0
         for inputs, targets in self._prepare_batches(dataset.batches(args.batch_size)):
-            pass
-
         return direct_accuracy, indirect_accuracy
 
 
