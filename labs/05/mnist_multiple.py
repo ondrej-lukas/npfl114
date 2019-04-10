@@ -53,15 +53,34 @@ class Network(tf.keras.Model):
 
     @staticmethod
     def _prepare_batches(batches_generator):
+        new_batches = []
         batches = []
         for batch in batches_generator:
             batches.append(batch)
             if len(batches) >= 2:
                 # TODO: yield the suitable modified inputs and targets using batches[0:2]
-                model_inputs = ...
-                model_outputs = ...
-                yield (model_inputs, model_targets)
+                new_batch = {}
+                new_batch['labels'] = []
+                new_batch['input_1'] = []
+                new_batch['input_2'] = []
+
+                for i in range(0,len(batches[0]['labels'])):
+                    i1 = batches[0]['images'][i]
+                    i2 = batches[1]['images'][i]
+                    new_batch['input_1'].append(i1)
+                    new_batch['input_2'].append(i2)
+                    l1 = batches[0]['labels'][i]
+                    l2 = batches[1]['labels'][i]
+                    if l1 > l2:
+                        new_batch['labels'].append(1)
+                    else:
+                        new_batch['labels'].append(0)
+                new_batch['labels'] = np.array(new_batch['labels'])
+                new_batch['input_1'] = np.array(new_batch['input_1'])
+                new_batch['input_2'] = np.array(new_batch['input_2'])
+                new_batches.append(new_batch)
                 batches.clear()
+        return new_batches
 
     def train(self, mnist, args):
         for epoch in range(args.epochs):
@@ -79,7 +98,7 @@ class Network(tf.keras.Model):
         direct_accuracy = 0
         indirect_accuracy = 0
         for inputs, targets in self._prepare_batches(dataset.batches(args.batch_size)):
-        return direct_accuracy, indirect_accuracy
+            return direct_accuracy, indirect_accuracy
 
 
 if __name__ == "__main__":
@@ -117,6 +136,6 @@ if __name__ == "__main__":
     # Create the network and train
     network = Network(args)
     network.train(mnist, args)
-    with open("mnist_multiple.out", "w") as out_file:
-        direct, indirect = network.evaluate(mnist.test, args)
-        print("{:.2f} {:.2f}".format(100 * direct, 100 * indirect), file=out_file)
+    # with open("mnist_multiple.out", "w") as out_file:
+    #     direct, indirect = network.evaluate(mnist.test, args)
+    #     print("{:.2f} {:.2f}".format(100 * direct, 100 * indirect), file=out_file)
