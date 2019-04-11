@@ -58,7 +58,7 @@ class Network:
             batches.append(batch)
             if len(batches) >= 2:
                 model_inputs = [batches[0]["images"], batches[1]["images"]]
-                model_targets = [batches[0]["labels"], batches[1]["labels"], 1*(batches[0]["labels"] > batches[1]["labels"])]
+                model_targets = [batches[0]["labels"], batches[1]["labels"], np.array(batches[0]["labels"] > batches[1]["labels"],dtype=int)]
                 # TODO: yield the suitable modified inputs and targets using batches[0:2]
                 yield (model_inputs, model_targets)
                 batches.clear()
@@ -66,8 +66,8 @@ class Network:
     def train(self, mnist, args):
         for epoch in range(args.epochs):
             # TODO: Train for one epoch using `model.train_on_batch` for each batch.
-            for batch in self._prepare_batches(mnist.train.batches(args.batch_size)):
-                self.model.train_on_batch(*batch)
+            for x,y in self._prepare_batches(mnist.train.batches(args.batch_size)):
+                self.model.train_on_batch(x,y)
 
             # Print development evaluation
             print("Dev {}: directly predicting: {:.4f}, comparing digits: {:.4f}".format(epoch + 1, *self.evaluate(mnist.dev, args)))
@@ -78,17 +78,15 @@ class Network:
         # labels of the images.
         direct_accuracy = []
         indirect_accuracy = []
-        counter = 0
         for inputs, targets in self._prepare_batches(dataset.batches(args.batch_size)):
             c1,c2,combined = self.model.predict_on_batch(inputs)
             digit1 = np.argmax(c1,axis=1)
             digit2 = np.argmax(c2,axis=1)
             direct =  np.array(np.round(combined),dtype=int)
-            indirect = 1*(digit1 > digit2)
-
-            #print("-----------------------")
+            direct = np.asarray(direct).reshape(-1)
+            indirect =np.array(digit1 > digit2, dtype=int)
             direct_accuracy.append(np.sum(direct==targets[2])/len(direct))
-            indirect_accuracy.append(np.sum(indirect == targets[2])/len(targets))
+            indirect_accuracy.append(np.sum(indirect == targets[2])/len(indirect))
         return np.mean(direct_accuracy), np.mean(indirect_accuracy)
 
 
@@ -127,6 +125,6 @@ if __name__ == "__main__":
     # Create the network and train
     network = Network(args)
     network.train(mnist, args)
-    # with open("mnist_multiple.out", "w") as out_file:
-    #     direct, indirect = network.evaluate(mnist.test, args)
-    #     print("{:.2f} {:.2f}".format(100 * direct, 100 * indirect), file=out_file)
+    with open("mnist_multiple.out", "w") as out_file:
+         direct, indirect = network.evaluate(mnist.test, args)
+         print("{:.2f} {:.2f}".format(100 * direct, 100 * indirect), file=out_file)
