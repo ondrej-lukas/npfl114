@@ -7,7 +7,7 @@ import tensorflow as tf
 from mnist import MNIST
 
 # The neural network model
-class Network(tf.keras.Model):
+class Network:
     def __init__(self, args):
         # TODO: Add a `self.model` which has two inputs, both images of size [MNIST.H, MNIST.W, MNIST.C].
         # It then passes each input image through the same network (with shared weights), performing
@@ -38,17 +38,16 @@ class Network(tf.keras.Model):
         flatten = tf.keras.layers.Flatten()
         fc = tf.keras.layers.Dense(200, activation="relu")
         out = tf.keras.layers.Dense(10, activation="softmax")
-        c1 = out(fc(flatten(hidden2(hidden1(inputs1)))))
-        c2 = out(fc(flatten(hidden2(hidden1(inputs2)))))
-        concat = tf.keras.layers.Concatenate()([c1,c2])
+        r1 = fc(flatten(hidden2(hidden1(inputs1))))
+        r2 = fc(flatten(hidden2(hidden1(inputs2))))
+        concat = tf.keras.layers.Concatenate()([r1,r2])
         merged_fc = tf.keras.layers.Dense(200,activation="relu")(concat)
         prediction = tf.keras.layers.Dense(1, activation="sigmoid")(merged_fc)
 
-        super().__init__(inputs=[inputs1, inputs2], outputs=[c1,c2,prediction])
+        self.model = tf.keras.Model(inputs=[inputs1, inputs2], outputs=[out(r1),out(r2),prediction])
         #create model
-        self.compile(optimizer=tf.keras.optimizers.Adam(),
-              loss=[tf.keras.losses.SparseCategoricalCrossentropy(),tf.keras.losses.SparseCategoricalCrossentropy(),tf.keras.losses.BinaryCrossentropy()],
-              metrics=['accuracy'])
+        self.model.compile(optimizer=tf.keras.optimizers.Adam(),
+              loss=[tf.keras.losses.SparseCategoricalCrossentropy(),tf.keras.losses.SparseCategoricalCrossentropy(),tf.keras.losses.BinaryCrossentropy()])
 
 
     @staticmethod
@@ -58,35 +57,17 @@ class Network(tf.keras.Model):
         for batch in batches_generator:
             batches.append(batch)
             if len(batches) >= 2:
+                model_inputs = [batches[0]["images"], batches[1]["images"]]
+                model_targets = [batches[0]["labels"], batches[1]["labels"], 1*(batches[0]["labels"] > batches[1]["labels"])]
                 # TODO: yield the suitable modified inputs and targets using batches[0:2]
-                new_batch = {}
-                new_batch['labels'] = []
-                new_batch['input_1'] = []
-                new_batch['input_2'] = []
-
-                for i in range(0,len(batches[0]['labels'])):
-                    i1 = batches[0]['images'][i]
-                    i2 = batches[1]['images'][i]
-                    new_batch['input_1'].append(i1)
-                    new_batch['input_2'].append(i2)
-                    l1 = batches[0]['labels'][i]
-                    l2 = batches[1]['labels'][i]
-                    if l1 > l2:
-                        new_batch['labels'].append(1)
-                    else:
-                        new_batch['labels'].append(0)
-                new_batch['labels'] = np.array(new_batch['labels'])
-                new_batch['input_1'] = np.array(new_batch['input_1'])
-                new_batch['input_2'] = np.array(new_batch['input_2'])
-                new_batches.append(new_batch)
+                yield (model_inputs, model_targets)
                 batches.clear()
-        return new_batches
 
     def train(self, mnist, args):
         for epoch in range(args.epochs):
             # TODO: Train for one epoch using `model.train_on_batch` for each batch.
             for batch in self._prepare_batches(mnist.train.batches(args.batch_size)):
-                self.train_on_batch(batch)
+                self.model.train_on_batch(*batch)
 
             # Print development evaluation
             print("Dev {}: directly predicting: {:.4f}, comparing digits: {:.4f}".format(epoch + 1, *self.evaluate(mnist.dev, args)))
@@ -95,10 +76,20 @@ class Network(tf.keras.Model):
         # TODO: Evaluate the given dataset, returning two accuracies, the first being
         # the direct prediction of the model, and the second computed by comparing predicted
         # labels of the images.
-        direct_accuracy = 0
-        indirect_accuracy = 0
+        direct_accuracy = []
+        indirect_accuracy = []
+        counter = 0
         for inputs, targets in self._prepare_batches(dataset.batches(args.batch_size)):
-            return direct_accuracy, indirect_accuracy
+            c1,c2,combined = self.model.predict_on_batch(inputs)
+            digit1 = np.argmax(c1,axis=1)
+            digit2 = np.argmax(c2,axis=1)
+            direct =  np.array(np.round(combined),dtype=int)
+            indirect = 1*(digit1 > digit2)
+
+            #print("-----------------------")
+            direct_accuracy.append(np.sum(direct==targets[2])/len(direct))
+            indirect_accuracy.append(np.sum(indirect == targets[2])/len(targets))
+        return np.mean(direct_accuracy), np.mean(indirect_accuracy)
 
 
 if __name__ == "__main__":
