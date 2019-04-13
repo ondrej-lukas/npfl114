@@ -28,12 +28,14 @@ class Network:
         mp2 = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(bn4)
         dr2 = tf.keras.layers.Dropout(0.25)(mp2)
 
+        # Mask making branch
+        cn5 = tf.keras.layers.Conv2D(64, (3, 3), padding="valid", activation="relu")(dr2)
+
         # Classification branch
         flat = tf.keras.layers.Flatten()(dr2)
         dense = tf.keras.layers.Dense(512, activation="relu")(flat)
         bn5 = tf.keras.layers.BatchNormalization(axis=-1)(dense)
         dr3 = tf.keras.layers.Dropout(0.5)(bn5)
-
         final = tf.keras.layers.Dense(10,activation="softmax")(dr3)
 
         optimizer = tf.keras.optimizers.Adam()
@@ -42,9 +44,6 @@ class Network:
         self.model = tf.keras.Model(inputs=inputs,outputs=final)
         self.model.compile(optimizer=optimizer,
                            loss=loss,metrics=metrics)
-
-        for layer in self.model.layers:
-            print(layer.output_shape)
 
     def train(self, fashion_masks, args):
         self.model.fit(fashion_masks.train.data['images'],fashion_masks.train.data['labels'], batch_size=args.batch_size, epochs=args.epochs)
