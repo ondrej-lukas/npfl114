@@ -11,50 +11,43 @@ from fashion_masks_data import FashionMasks
 # convolutional layers, followed by two heads, one predicting
 # the label and the other one the masks.
 class Network:
-    def __init__(self, args):
-        model = tf.keras.Sequential()
-        input_shape = [28,28,1]
+    def __init__(self, args,fashion_masks):
+        input_shape = [fashion_masks.H,fashion_masks.W,fashion_masks.C]
+        inputs = tf.keras.layers.Input(shape=input_shape)
+        c1 = tf.keras.layers.Conv2D(32, (3, 3), padding="same",activation="relu")(inputs)
+        bn1 = tf.keras.layers.BatchNormalization(axis=-1)(c1)
+        c2 = tf.keras.layers.Conv2D(32, (3, 3), padding="same",activation="relu")(bn1)
+        bn2 = tf.keras.layers.BatchNormalization(axis=-1)(c2)
+        mp1 = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(bn2)
+        dr1 = tf.keras.layers.Dropout(0.25)(mp1)
 
-        # first CONV => RELU => CONV => RELU => POOL layer set
-        model.add(tf.keras.layers.Conv2D(32, (3, 3), padding="same",
-                         input_shape=input_shape))
-        model.add(tf.keras.layers.Activation("relu"))
-        model.add(tf.keras.layers.BatchNormalization())
-        model.add(tf.keras.layers.Conv2D(32, (3, 3), padding="same"))
-        model.add(tf.keras.layers.Activation("relu"))
-        model.add(tf.keras.layers.BatchNormalization())
-        model.add(tf.keras.layers.MaxPooling2D(pool_size=(2, 2)))
-        model.add(tf.keras.layers.Dropout(0.25))
+        cn3 = tf.keras.layers.Conv2D(64, (3, 3), padding="same", activation="relu")(dr1)
+        bn3 = tf.keras.layers.BatchNormalization(axis=-1)(cn3)
+        cn4 = tf.keras.layers.Conv2D(64, (3, 3), padding="same", activation="relu")(bn3)
+        bn4 = tf.keras.layers.BatchNormalization(axis=-1)(cn4)
+        mp2 = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(bn4)
+        dr2 = tf.keras.layers.Dropout(0.25)(mp2)
 
-        # second CONV => RELU => CONV => RELU => POOL layer set
-        model.add(tf.keras.layers.Conv2D(64, (3, 3), padding="same"))
-        model.add(tf.keras.layers.Activation("relu"))
-        model.add(tf.keras.layers.BatchNormalization())
-        model.add(tf.keras.layers.Conv2D(64, (3, 3), padding="same"))
-        model.add(tf.keras.layers.Activation("relu"))
-        model.add(tf.keras.layers.BatchNormalization())
-        model.add(tf.keras.layers.MaxPooling2D(pool_size=(2, 2)))
-        model.add(tf.keras.layers.Dropout(0.25))
+        # Classification branch
+        flat = tf.keras.layers.Flatten()(dr2)
+        dense = tf.keras.layers.Dense(512, activation="relu")(flat)
+        bn5 = tf.keras.layers.BatchNormalization(axis=-1)(dense)
+        dr3 = tf.keras.layers.Dropout(0.5)(bn5)
 
-        # first (and only) set of FC => RELU layers
-        model.add(tf.keras.layers.Flatten())
-        model.add(tf.keras.layers.Dense(512))
-        model.add(tf.keras.layers.Activation("relu"))
-        model.add(tf.keras.layers.BatchNormalization())
-        model.add(tf.keras.layers.Dropout(0.5))
-
-        # softmax classifier
-        model.add(tf.keras.layers.Dense(10))
-        model.add(tf.keras.layers.Activation("softmax"))
+        final = tf.keras.layers.Dense(10,activation="softmax")(dr3)
 
         optimizer = tf.keras.optimizers.Adam()
         loss = tf.keras.losses.SparseCategoricalCrossentropy()
         metrics = ['accuracy']
-        model.compile(loss=loss,optimizer=optimizer,metrics=metrics)
-        self.model = model
+        self.model = tf.keras.Model(inputs=inputs,outputs=final)
+        self.model.compile(optimizer=optimizer,
+                           loss=loss,metrics=metrics)
+
+        for layer in self.model.layers:
+            print(layer.output_shape)
 
     def train(self, fashion_masks, args):
-        self.model.fit(fashion_masks.train.data['images'][0:1000],fashion_masks.train.data['labels'][0:1000], batch_size=args.batch_size, epochs=args.epochs)
+        self.model.fit(fashion_masks.train.data['images'],fashion_masks.train.data['labels'], batch_size=args.batch_size, epochs=args.epochs)
 
 if __name__ == "__main__":
     import argparse
@@ -86,7 +79,7 @@ if __name__ == "__main__":
     fashion_masks = FashionMasks()
 
     # Create the network and train
-    network = Network(args)
+    network = Network(args,fashion_masks)
     network.train(fashion_masks, args)
 
     # Predict test data in args.logdir
