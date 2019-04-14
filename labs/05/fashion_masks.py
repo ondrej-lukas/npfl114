@@ -76,11 +76,15 @@ class Network:
         masks = []
         for inputs, targets in self._prepare_batches(dataset.batches(args.batch_size)):
             classification, mask = self.model.predict_on_batch(inputs)
-            print(mask.shape, targets[1].shape)
-            label = np.argmax(classification,axis=1)
-            mask =  np.array(np.round(mask),dtype=bool)
+            #print(mask.shape, targets[1].shape)
+            label = np.argmax(classification, axis=1)
+            mask =  np.array(np.round(mask), dtype=bool)
             labels.append(np.sum(label==targets[0])/len(label))
-            masks.append(np.sum(mask == targets[1])/len(masks))
+            #print(targets[1].shape)
+            masks.append(np.sum(mask == targets[1],axis=1)/(28*28))
+            #print(np.sum(mask == targets[1]))
+            #print(masks[-1])
+            print("---------------------------")
         return np.mean(labels), np.mean(masks), np.mean(labels)*np.mean(masks)
 
     """
@@ -95,8 +99,8 @@ if __name__ == "__main__":
 
     # Parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size", default=10, type=int, help="Batch size.")
-    parser.add_argument("--epochs", default=1, type=int, help="Number of epochs.")
+    parser.add_argument("--batch_size", default=50, type=int, help="Batch size.")
+    parser.add_argument("--epochs", default=10, type=int, help="Number of epochs.")
     parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
     args = parser.parse_args()
 
