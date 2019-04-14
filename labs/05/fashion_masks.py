@@ -30,6 +30,9 @@ class Network:
 
         # Mask making branch
         cn5 = tf.keras.layers.Conv2D(64, (3, 3), padding="valid", activation="relu")(dr2)
+        masks = tf.keras.layers.Flatten()(cn5)
+        masks = tf.keras.layers.Dense(1000,activation="relu")(masks)
+        masks = tf.keras.layers.Dense(28*28,activation="sigmoid")(masks) 
 
         # Classification branch
         flat = tf.keras.layers.Flatten()(dr2)
@@ -39,15 +42,51 @@ class Network:
         final = tf.keras.layers.Dense(10,activation="softmax")(dr3)
 
         optimizer = tf.keras.optimizers.Adam()
-        loss = tf.keras.losses.SparseCategoricalCrossentropy()
+        loss = [tf.keras.losses.SparseCategoricalCrossentropy(), tf.keras.losses.BinaryCrossentropy()]
         metrics = ['accuracy']
-        self.model = tf.keras.Model(inputs=inputs,outputs=final)
+        self.model = tf.keras.Model(inputs=inputs,outputs=[final,masks])
         self.model.compile(optimizer=optimizer,
                            loss=loss,metrics=metrics)
 
+
+
+    @staticmethod
+    def _prepare_batches(batches_generator):
+        new_batches = []
+        for batch in batches_generator:
+            model_inputs = batch["images"]
+            #print([np.asarray(x).reshape(-1) for x in batch["masks"]])
+            model_targets = [batch["labels"], np.array([np.asarray(x).reshape(-1) for x in batch["masks"]])]
+            # TODO: yield the suitable modified inputs and targets using batches[0:2]
+            yield (model_inputs, model_targets)
+
+    def train(self, fashion_masks, args):
+        for epoch in range(args.epochs):
+            # TODO: Train for one epoch using `model.train_on_batch` for each batch.
+            for x,y in self._prepare_batches(fashion_masks.train.batches(args.batch_size)):
+                self.model.train_on_batch(x,y)
+            # Print development evaluation
+            print("Dev {}: label: {}, mask: {}, both: {}".format(epoch + 1, *self.evaluate(fashion_masks.dev, args)))
+    
+    def evaluate(self, dataset, args):
+        # TODO: Evaluate the given dataset, returning two accuracies, the first being
+        # the direct prediction of the model, and the second computed by comparing predicted
+        # labels of the images.
+        labels = []
+        masks = []
+        for inputs, targets in self._prepare_batches(dataset.batches(args.batch_size)):
+            classification, mask = self.model.predict_on_batch(inputs)
+            print(mask.shape, targets[1].shape)
+            label = np.argmax(classification,axis=1)
+            mask =  np.array(np.round(mask),dtype=bool)
+            labels.append(np.sum(label==targets[0])/len(label))
+            masks.append(np.sum(mask == targets[1])/len(masks))
+        return np.mean(labels), np.mean(masks), np.mean(labels)*np.mean(masks)
+
+    """
     def train(self, fashion_masks, args):
         self.model.fit(fashion_masks.train.data['images'],fashion_masks.train.data['labels'], batch_size=args.batch_size, epochs=args.epochs)
-
+    """
 if __name__ == "__main__":
     import argparse
     import datetime
@@ -86,12 +125,13 @@ if __name__ == "__main__":
         # TODO: Predict labels and masks on fashion_masks.test.data["images"],
         # into test_labels and test_masks (test_masks is assumed to be
         # a Numpy array with values 0/1).
-        test_labels = network.model.predict(fashion_masks.test.data['images'])
+        test_labels,test_masks = network.model.predict(fashion_masks.test.data['images'])
+        """
         test_masks = []
         for i in range(0,test_labels.shape[0]):
             max_class = max(test_labels[i,:])
             mask = np.zeros((28,28,1))
             mask[fashion_masks.test.data['images'][i] > 0.5] = 1
-
+        """
         for label, mask in zip(test_labels, test_masks):
             print(label, *mask.astype(np.uint8).flatten(), file=out_file)
