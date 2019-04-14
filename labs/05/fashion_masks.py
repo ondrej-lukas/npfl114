@@ -29,10 +29,13 @@ class Network:
         dr2 = tf.keras.layers.Dropout(0.25)(mp2)
 
         # Mask making branch
-        cn5 = tf.keras.layers.Conv2D(64, (3, 3), padding="valid", activation="relu")(dr2)
-        masks = tf.keras.layers.Flatten()(cn5)
-        masks = tf.keras.layers.Dense(1000,activation="relu")(masks)
-        masks = tf.keras.layers.Dense(28*28,activation="sigmoid")(masks) 
+        cn5 = tf.keras.layers.Conv2D(64, (3, 3), padding="same", activation="relu")(dr2)
+        bn5 = tf.keras.layers.BatchNormalization(axis=-1)(cn5)
+        tc1 = tf.keras.layers.Conv2DTranspose(64, 1, padding="same",strides=(4,4),activation="relu")(bn5)
+        cn6 = tf.keras.layers.Conv2D(1, (1,1), padding="same",activation="sigmoid")(tc1)
+        masks = tf.keras.layers.Flatten()(cn6)
+        # masks = tf.keras.layers.Dense(1000,activation="relu")(masks)
+        # masks = tf.keras.layers.Dense(28*28,activation="sigmoid")(masks)
 
         # Classification branch
         flat = tf.keras.layers.Flatten()(dr2)
@@ -47,6 +50,9 @@ class Network:
         self.model = tf.keras.Model(inputs=inputs,outputs=[final,masks])
         self.model.compile(optimizer=optimizer,
                            loss=loss,metrics=metrics)
+
+        for layer in self.model.layers:
+            print(layer.output_shape)
 
 
 
