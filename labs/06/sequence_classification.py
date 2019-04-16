@@ -121,7 +121,7 @@ class Network:
             for name,metrics in self._metrics.items():
                 if name == "loss":
                     metrics.reset_states()
-                    self._loss(batch["labels"], probabilities)
+                    metrics.update_state(loss)
                 else:
                     metrics.reset_states()
                     value = metrics(batch["labels"],probabilities)
@@ -160,7 +160,7 @@ class Network:
                 for name, metric in self._metrics.items():
                     if name == "loss":
                         metric.reset_states()
-                        self._loss(batch["labels"], probs)
+                        metric.update_state(loss)
                     else:
                         metric.reset_states()
                         value = metric(batch["labels"], probs)
@@ -170,7 +170,6 @@ class Network:
         metrics = {}
         for name, metric in self._metrics.items():
             metrics[name] = metric.result()
-
         return metrics
 
 if __name__ == "__main__":
