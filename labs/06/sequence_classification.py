@@ -49,14 +49,14 @@ class Network:
         # TODO: Process the sequence using the given `args.rnn_cell` RNN cell,
         # with dimensionality `args.rnn_cell_dim`. Use `return_sequences=True`
         # to get outputs for all sequence elements.
-        if args.rnn_cell == "SimpleRNN"
+        if args.rnn_cell == "SimpleRNN":
+            sequences = tf.keras.layers.SimpleRNN(args.rnn_cell_dim)(sequences)
         # TODO: If `args.hidden_layer` is defined, process the result using
         # a ReLU-activated fully connected layer with `args.hidden_layer` units.
         elif args.rnn_cell == "LSTM":
-            pass
+            sequences = tf.keras.layers.CuDNNLSTM(args.rnn_cell_dim)(sequences)
         elif args.rnn_cell == "GRU":
-            pass
-
+            sequences = tf.keras.layers.GRU(args.rnn_cell_dim)(sequences)
         if args.hidden_layer:
             sequences = tf.keras.Dense(int(args.hidden_layer), activation="relu")(sequences)
         # TODO: Generate predictions using a fully connected layer
@@ -67,13 +67,18 @@ class Network:
         # TODO: Create an Adam optimizer in self._optimizer
         self._optimizer = tf.keras.optimizers.Adam()
         # TODO: Create a suitable loss in self._loss
-        self._loss = None
+        self._loss = tf.keras.losses.BinaryCrossEntropy()
         # TODO: Create two metrics in self._metrics dictionary:
         #  - "loss", which is tf.metrics.Mean()
         #  - "accuracy", which is suitable accuracy
-        
+        self._metrics = {"loss":tf.metrics.Mean(), "accuracy":tf.keras.metrics.Accuracy()}
         # TODO: Create a summary file writer using `tf.summary.create_file_writer`.
         # I usually add `flush_millis=10 * 1000` arguments to get the results reasonably quickly.
+
+
+
+
+
 
     @tf.function
     def train_batch(self, batch, clip_gradient):
@@ -97,6 +102,32 @@ class Network:
         #   - for other metrics, compute their value using the gold labels and predictions
         #   - then, add a summary using `tf.summary.scalar("train/" + name, metric.result())`
         # - Finall, add the gradient_norm using `tf.summary.scalar("train/gradient_norm", gradient_norm)`
+
+
+
+        ##########################################################################################
+        #COPY FROM example_manual.py
+        with tf.GradientTape() as tape:
+            probabilities = self.model(batch["sequences"], training=True)
+            loss = self._loss(batch["labels"], probabilities)
+            gradients = tape.gradient(loss, self.model.variables)
+            if clip_gradient:
+                gradients, gradient_norm = tf.clip_by_global_norm(gradients, clip_gradient)
+            else:
+                gradient_norm = tf.linalg.global_norm(gradients)
+            self._optimizer.apply_gradients(zip(gradient_norm, self.model.variables))
+
+        tf.summary.experimental.set_step(self._optimizer.iterations)
+        with self._writer.as_default():
+            for name,metrics in self._metrics.items():
+                if name == "loss":
+                    pass #TODO
+                else:
+                    pass #TODO
+                tf.summary.scalar("train/" + name, metric.result())
+
+
+        ############################################################################################# 
 
     def train_epoch(self, dataset, args):
         for batch in dataset.batches(args.batch_size):
@@ -143,7 +174,7 @@ if __name__ == "__main__":
     parser.add_argument("--sequence_length", default=50, type=int, help="Sequence length.")
     parser.add_argument("--recodex", default=False, action="store_true", help="Evaluation in ReCodEx.")
     parser.add_argument("--test_sequences", default=1000, type=int, help="Number of testing sequences.")
-    parser.add_argument("--threads", default=1, type=int, help="Maximum number of threads to use.")
+    parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
     parser.add_argument("--train_sequences", default=10000, type=int, help="Number of training sequences.")
     args = parser.parse_args()
 
