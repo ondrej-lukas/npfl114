@@ -49,7 +49,7 @@ class Network:
         # TODO: Process the sequence using the given `args.rnn_cell` RNN cell,
         # with dimensionality `args.rnn_cell_dim`. Use `return_sequences=True`
         # to get outputs for all sequence elements.
-        if args.rnn_cell == "SimpleRNN"
+        if args.rnn_cell == "SimpleRNN":
         # TODO: If `args.hidden_layer` is defined, process the result using
         # a ReLU-activated fully connected layer with `args.hidden_layer` units.
         elif args.rnn_cell == "LSTM":

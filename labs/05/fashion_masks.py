@@ -32,7 +32,8 @@ class Network:
         cn5 = tf.keras.layers.Conv2D(64, (3, 3), padding="same", activation="relu")(dr2)
         bn5 = tf.keras.layers.BatchNormalization(axis=-1)(cn5)
         tc1 = tf.keras.layers.Conv2DTranspose(64, 1, padding="same",strides=(4,4),activation="relu")(bn5)
-        cn6 = tf.keras.layers.Conv2D(1, (1,1), padding="same",activation="sigmoid")(tc1)
+        dr3 = tf.keras.layers.Dropout(0.3)(tc1)
+        cn6 = tf.keras.layers.Conv2D(1, (1,1), padding="same",activation="sigmoid")(dr3)
         masks = tf.keras.layers.Flatten()(cn6)
         # masks = tf.keras.layers.Dense(1000,activation="relu")(masks)
         # masks = tf.keras.layers.Dense(28*28,activation="sigmoid")(masks)
@@ -41,8 +42,9 @@ class Network:
         flat = tf.keras.layers.Flatten()(dr2)
         dense = tf.keras.layers.Dense(512, activation="relu")(flat)
         bn5 = tf.keras.layers.BatchNormalization(axis=-1)(dense)
-        dr3 = tf.keras.layers.Dropout(0.5)(bn5)
+        dr3 = tf.keras.layers.Dropout(0.3)(bn5)
         final = tf.keras.layers.Dense(10,activation="softmax")(dr3)
+        # final = tf.keras.layers.Dense(1,activation="relu")(final)
 
         optimizer = tf.keras.optimizers.Adam()
         loss = [tf.keras.losses.SparseCategoricalCrossentropy(), tf.keras.losses.BinaryCrossentropy()]
@@ -51,10 +53,8 @@ class Network:
         self.model.compile(optimizer=optimizer,
                            loss=loss,metrics=metrics)
 
-        for layer in self.model.layers:
-            print(layer.output_shape)
-
-
+        # for layer in self.model.layers:
+        #     print(layer.output_shape)
 
     @staticmethod
     def _prepare_batches(batches_generator):
@@ -70,6 +70,7 @@ class Network:
         for epoch in range(args.epochs):
             # TODO: Train for one epoch using `model.train_on_batch` for each batch.
             for x,y in self._prepare_batches(fashion_masks.train.batches(args.batch_size)):
+                print("Training on batch")
                 self.model.train_on_batch(x,y)
             # Print development evaluation
             print("Dev {}: label: {}, mask: {}, both: {}".format(epoch + 1, *self.evaluate(fashion_masks.dev, args)))
@@ -105,8 +106,8 @@ if __name__ == "__main__":
 
     # Parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size", default=50, type=int, help="Batch size.")
-    parser.add_argument("--epochs", default=10, type=int, help="Number of epochs.")
+    parser.add_argument("--batch_size", default=10, type=int, help="Batch size.")
+    parser.add_argument("--epochs", default=1, type=int, help="Number of epochs.")
     parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
     args = parser.parse_args()
 
