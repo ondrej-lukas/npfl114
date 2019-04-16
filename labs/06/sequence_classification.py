@@ -51,13 +51,13 @@ class Network:
         # with dimensionality `args.rnn_cell_dim`. Use `return_sequences=True`
         # to get outputs for all sequence elements.
         if args.rnn_cell == "SimpleRNN":
-            sequences = tf.keras.layers.SimpleRNN(args.rnn_cell_dim)(input)
+            sequences = tf.keras.layers.SimpleRNN(args.rnn_cell_dim,return_sequences=True)(input)
         # TODO: If `args.hidden_layer` is defined, process the result using
         # a ReLU-activated fully connected layer with `args.hidden_layer` units.
         elif args.rnn_cell == "LSTM":
-            sequences = tf.keras.layers.LSTM(args.rnn_cell_dim)(input)
+            sequences = tf.keras.layers.LSTM(args.rnn_cell_dim,return_sequences=True)(input)
         elif args.rnn_cell == "GRU":
-            sequences = tf.keras.layers.GRU(args.rnn_cell_dim)(input)
+            sequences = tf.keras.layers.GRU(args.rnn_cell_dim,return_sequences=True)(input)
         if args.hidden_layer:
             if sequences is None:
                 sequences = tf.keras.layers.Dense(int(args.hidden_layer), activation="relu")(input)
@@ -182,7 +182,7 @@ if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch_size", default=16, type=int, help="Batch size.")
-    parser.add_argument("--clip_gradient", default=None, type=float, help="Norm for gradient clipping.")
+    parser.add_argument("--clip_gradient", default=0.3, type=float, help="Norm for gradient clipping.")
     parser.add_argument("--hidden_layer", default=None, type=int, help="Additional hidden layer after RNN.")
     parser.add_argument("--epochs", default=20, type=int, help="Number of epochs.")
     parser.add_argument("--rnn_cell", default="LSTM", type=str, help="RNN cell type.")
