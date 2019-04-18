@@ -7,7 +7,7 @@ from caltech42 import Caltech42
 
 # The neural network model
 class Network:
-    def __init__(self, args):
+    def __init__(self, args, caltech42):
         # TODO: You should define `self.model`. You should use the following layer:
         #   mobilenet = tfhub.KerasLayer("https://tfhub.dev/google/tf2-preview/mobilenet_v2/feature_vector/2", output_shape=[1280])
         # The layer:
@@ -33,14 +33,28 @@ class Network:
         self.tb_callback=tf.keras.callbacks.TensorBoard(args.logdir, update_freq=1000, profile_batch=1)
         self.tb_callback.on_train_end = lambda *_: None
 
+        inputs = tf.keras.layers.Input(shape=(None, None, caltech42.C))
+
+        mobilenet = tfhub.KerasLayer("https://tfhub.dev/google/tf2-preview/mobilenet_v2/feature_vector/2",
+                                     output_shape=[1280], trainable=False)
+        features = mobilenet(inputs, training=False)
+
+        features = tf.keras.layers.Dense(200,"relu")(features)
+        features = tf.keras.layers.Dense(42,"softmax")(features)
+
+        self.model = tf.keras.Model(inputs=inputs, outputs=features)
+        optimizer = tf.keras.optimizers.Adam()
+        loss = tf.keras.losses.CategoricalCrossentropy()
+        self.model.compile(optimizer=optimizer, loss=loss)
+
     def train(self, caltech42, args):
-        # TODO: Implement training
-        pass
+        for epoch in range(args.epochs):
+            for batch in caltech42.train.batches(size=args.batch_size):
+                self.train_on_batch(batch)
+            print("Epoch: ", epoch, " Dev accuracy: ", tf.metrics.accuracy(caltech42.dev.data['labels'], self.model(caltech42.dev.data['images'])))
 
     def predict(self, caltech42, args):
-        # TODO: Implement prediction
-        pass
-
+        return self.model(caltech42.data['images'])
 
 if __name__ == "__main__":
     import argparse
@@ -50,9 +64,9 @@ if __name__ == "__main__":
 
     # Parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size", default=None, type=int, help="Batch size.")
-    parser.add_argument("--epochs", default=None, type=int, help="Number of epochs.")
-    parser.add_argument("--threads", default=1, type=int, help="Maximum number of threads to use.")
+    parser.add_argument("--batch_size", default=50, type=int, help="Batch size.")
+    parser.add_argument("--epochs", default=10, type=int, help="Number of epochs.")
+    parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
     args = parser.parse_args()
 
     # Fix random seeds
@@ -68,11 +82,15 @@ if __name__ == "__main__":
         ",".join(("{}={}".format(re.sub("(.)[^_]*_?", r"\1", key), value) for key, value in sorted(vars(args).items())))
     ))
 
+    def process_im(im):
+        s = np.frombuffer(im, dtype=np.float32)
+        return None
+
     # Load data
-    caltech42 = Caltech42()
+    caltech42 = Caltech42(process_im)
 
     # Create the network and train
-    network = Network(args)
+    network = Network(args,caltech42)
     network.train(caltech42, args)
 
     # Generate test set annotations, but in args.logdir to allow parallel execution.

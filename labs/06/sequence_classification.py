@@ -116,18 +116,18 @@ class Network:
                 gradient_norm = tf.linalg.global_norm(gradients)
             self._optimizer.apply_gradients(zip(gradient_norm, self.model.variables))
 
-        tf.summary.experimental.set_step(self._optimizer.iterations)
-        with self._writer.as_default():
-            for name,metrics in self._metrics.items():
-                if name == "loss":
-                    metrics.reset_states()
-                    metrics.update_state(loss)
-                else:
-                    metrics.reset_states()
-                    value = metrics(batch["labels"],probabilities)
-                    metrics.update_state(value)
-                tf.summary.scalar("train/" + name, metrics.result())
-            tf.summary.scalar("train/gradient_norm", gradient_norm)
+            tf.summary.experimental.set_step(self._optimizer.iterations)
+            with self._writer.as_default():
+                for name,metrics in self._metrics.items():
+                    if name == "loss":
+                        metrics.reset_states()
+                        metrics.update_state(loss)
+                    else:
+                        metrics.reset_states()
+                        value = metrics(batch["labels"],probabilities)
+                        metrics.update_state(value)
+                    tf.summary.scalar("train/" + name, metrics.result())
+                tf.summary.scalar("train/gradient_norm", gradient_norm)
 
         ############################################################################################# 
 
@@ -167,9 +167,9 @@ class Network:
                         metric.update_state(value)
                     tf.summary.scalar("test/" + name, metric)
 
-        metrics = {}
-        for name, metric in self._metrics.items():
-            metrics[name] = metric.result()
+                metrics = {}
+                for name, metric in self._metrics.items():
+                    metrics[name] = metric.result()
         return metrics
 
 if __name__ == "__main__":
