@@ -58,7 +58,9 @@ class Caltech42:
                 permutation = permutation[batch_size:]
 
                 batch = {}
+                key_count = 0
                 for key in self._data:
+                    key_count += 1
                     if key == "images":
                         batch[key] = np.zeros([batch_size, Caltech42.MIN_SIZE, Caltech42.MIN_SIZE, Caltech42.C], dtype=np.float32)
                         for i, index in enumerate(batch_perm):
@@ -66,6 +68,7 @@ class Caltech42:
                             if type(data) != np.ndarray:
                                 raise ValueError("Caltech42: Expecting images after `image_processing` to be Numpy `ndarray`")
                             if data.dtype != np.float32 or data.shape != (Caltech42.MIN_SIZE, Caltech42.MIN_SIZE, Caltech42.C):
+                                print("Key count: ", key_count)
                                 raise ValueError("Caltech42: Expecting images after `image_processing` to have shape {} and dtype {}".format(
                                     (Caltech42.MIN_SIZE, Caltech42.MIN_SIZE, Caltech42.C), np.float32))
                             batch[key][i] = image_processing(self._data[key][index]) if image_processing is not None else self._data[key][index]

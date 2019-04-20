@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
+import struct
+
 import numpy as np
 import tensorflow as tf
 import tensorflow_hub as tfhub # Note: you need to install tensorflow_hub
+import cv2
 
 from caltech42 import Caltech42
 
@@ -33,7 +36,7 @@ class Network:
         self.tb_callback=tf.keras.callbacks.TensorBoard(args.logdir, update_freq=1000, profile_batch=1)
         self.tb_callback.on_train_end = lambda *_: None
 
-        inputs = tf.keras.layers.Input(shape=(None, None, caltech42.C))
+        inputs = tf.keras.layers.Input(shape=(224, 224, caltech42.C))
 
         mobilenet = tfhub.KerasLayer("https://tfhub.dev/google/tf2-preview/mobilenet_v2/feature_vector/2",
                                      output_shape=[1280], trainable=False)
@@ -44,14 +47,14 @@ class Network:
 
         self.model = tf.keras.Model(inputs=inputs, outputs=features)
         optimizer = tf.keras.optimizers.Adam()
-        loss = tf.keras.losses.CategoricalCrossentropy()
+        loss = tf.keras.losses.SparseCategoricalCrossentropy()
         self.model.compile(optimizer=optimizer, loss=loss)
 
     def train(self, caltech42, args):
         for epoch in range(args.epochs):
             for batch in caltech42.train.batches(size=args.batch_size):
-                self.train_on_batch(batch)
-            print("Epoch: ", epoch, " Dev accuracy: ", tf.metrics.accuracy(caltech42.dev.data['labels'], self.model(caltech42.dev.data['images'])))
+                self.model.train_on_batch(batch['images'],batch['labels'])
+            # print("Epoch: ", epoch, " Dev accuracy: ", tf.metrics.CategoricalAccuracy(caltech42.dev.data['labels'], self.model(caltech42.dev.data['images'])))
 
     def predict(self, caltech42, args):
         return self.model(caltech42.data['images'])
@@ -83,11 +86,15 @@ if __name__ == "__main__":
     ))
 
     def process_im(im):
-        s = np.frombuffer(im, dtype=np.float32)
-        return None
+        decoded = cv2.imdecode(np.frombuffer(im, np.uint8), -1)
+        resized = np.array(cv2.resize(decoded, dsize=(224, 224), interpolation=cv2.INTER_CUBIC), dtype=np.float32)
+        if resized.shape != (Caltech42.MIN_SIZE, Caltech42.MIN_SIZE, Caltech42.C):
+            # print("Wrong one found!")
+            resized = cv2.cvtColor(resized,cv2.COLOR_GRAY2RGB)
+        return resized
 
     # Load data
-    caltech42 = Caltech42(process_im)
+    caltech42 = Caltech42(image_processing=process_im)
 
     # Create the network and train
     network = Network(args,caltech42)
