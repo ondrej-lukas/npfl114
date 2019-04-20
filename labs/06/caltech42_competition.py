@@ -54,7 +54,10 @@ class Network:
         for epoch in range(args.epochs):
             for batch in caltech42.train.batches(size=args.batch_size):
                 self.model.train_on_batch(batch['images'],batch['labels'])
-            # print("Epoch: ", epoch, " Dev accuracy: ", tf.metrics.CategoricalAccuracy(caltech42.dev.data['labels'], self.model(caltech42.dev.data['images'])))
+            pred = self.model(caltech42.dev.data['images'])
+            correct = caltech42.dev.data['labels']
+            metric = tf.keras.metrics.SparseCategoricalAccuracy(name="accuracy")
+            print("Epoch: ", epoch, " Dev accuracy: ", metric(correct, pred))
 
     def predict(self, caltech42, args):
         return self.model(caltech42.data['images'])
@@ -67,8 +70,8 @@ if __name__ == "__main__":
 
     # Parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size", default=50, type=int, help="Batch size.")
-    parser.add_argument("--epochs", default=10, type=int, help="Number of epochs.")
+    parser.add_argument("--batch_size", default=10, type=int, help="Batch size.")
+    parser.add_argument("--epochs", default=1, type=int, help="Number of epochs.")
     parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
     args = parser.parse_args()
 
@@ -84,6 +87,7 @@ if __name__ == "__main__":
         datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S"),
         ",".join(("{}={}".format(re.sub("(.)[^_]*_?", r"\1", key), value) for key, value in sorted(vars(args).items())))
     ))
+    os.makedirs(args.logdir)
 
     def process_im(im):
         decoded = cv2.imdecode(np.frombuffer(im, np.uint8), -1)
