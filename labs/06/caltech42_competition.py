@@ -40,9 +40,9 @@ class Network:
 
         mobilenet = tfhub.KerasLayer("https://tfhub.dev/google/tf2-preview/mobilenet_v2/feature_vector/2",
                                      output_shape=[1280], trainable=False)
-        features = mobilenet(inputs, training=False)
+        features = mobilenet(inputs, training=True)
 
-        features = tf.keras.layers.Dense(200,"relu")(features)
+        features = tf.keras.layers.Dense(2000,"relu")(features)
         features = tf.keras.layers.Dense(42,"softmax")(features)
 
         self.model = tf.keras.Model(inputs=inputs, outputs=features)
@@ -70,8 +70,8 @@ if __name__ == "__main__":
 
     # Parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size", default=10, type=int, help="Batch size.")
-    parser.add_argument("--epochs", default=1, type=int, help="Number of epochs.")
+    parser.add_argument("--batch_size", default=70, type=int, help="Batch size.")
+    parser.add_argument("--epochs", default=500, type=int, help="Number of epochs.")
     parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
     args = parser.parse_args()
 
