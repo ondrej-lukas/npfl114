@@ -44,40 +44,30 @@ class Dataset:
 
 class Network:
     def __init__(self, args):
-        input = tf.keras.layers.Input(shape=(args.sequence_length, args.sequence_dim))
-        sequences = None
+        sequences_i = tf.keras.layers.Input(shape=(args.sequence_length, args.sequence_dim))
 
         # TODO: Process the sequence using the given `args.rnn_cell` RNN cell,
         # with dimensionality `args.rnn_cell_dim`. Use `return_sequences=True`
         # to get outputs for all sequence elements.
-        if args.rnn_cell == "SimpleRNN":
-            sequences = tf.keras.layers.SimpleRNN(args.rnn_cell_dim,return_sequences=True)(input)
-        # TODO: If `args.hidden_layer` is defined, process the result using
-        # a ReLU-activated fully connected layer with `args.hidden_layer` units.
-        elif args.rnn_cell == "LSTM":
-            sequences = tf.keras.layers.LSTM(args.rnn_cell_dim,return_sequences=True)(input)
-        elif args.rnn_cell == "GRU":
-            sequences = tf.keras.layers.GRU(args.rnn_cell_dim,return_sequences=True)(input)
+        sequences = getattr(tf.keras.layers, args.rnn_cell)(args.rnn_cell_dim, return_sequences=True)(sequences_i)
         if args.hidden_layer:
-            if sequences is None:
-                sequences = tf.keras.layers.Dense(int(args.hidden_layer), activation="relu")(input)
-            else:
-                sequences = tf.keras.layers.Dense(int(args.hidden_layer), activation="relu")(sequences)
+            sequences = tf.keras.layers.Dense(args.hidden_layer, activation='relu')(sequences)
         # TODO: Generate predictions using a fully connected layer
         # with one output and `tf.nn.sigmoid` activation.
         predictions = tf.keras.layers.Dense(1,activation="sigmoid")(sequences)
-        self.model = tf.keras.Model(inputs=input, outputs=predictions)
+        self.model = tf.keras.Model(inputs=sequences_i, outputs=predictions)
 
         # TODO: Create an Adam optimizer in self._optimizer
         self._optimizer = tf.keras.optimizers.Adam()
         # TODO: Create a suitable loss in self._loss
-        self._loss = tf.keras.losses.BinaryCrossentropy(from_logits=True)
+        self._loss = tf.keras.losses.BinaryCrossentropy()
         # TODO: Create two metrics in self._metrics dictionary:
         #  - "loss", which is tf.metrics.Mean()
         #  - "accuracy", which is suitable accuracy
-        self._metrics = {"loss":tf.metrics.Mean(), "accuracy":tf.keras.metrics.Accuracy()}
+        self._metrics = {'loss': tf.metrics.Mean(), 'accuracy': tf.keras.metrics.BinaryAccuracy()}
         # TODO: Create a summary file writer using `tf.summary.create_file_writer`.
         # I usually add `flush_millis=10 * 1000` arguments to get the results reasonably quickly.
+        self._writer = tf.summary.create_file_writer(args.logdir, flush_millis=10 * 1000)
 
     @tf.function
     def train_batch(self, batch, clip_gradient):
@@ -109,25 +99,22 @@ class Network:
         with tf.GradientTape() as tape:
             probabilities = self.model(batch["sequences"], training=True)
             loss = self._loss(batch["labels"], probabilities)
-            gradients = tape.gradient(loss, self.model.variables)
-            if clip_gradient:
-                gradients, gradient_norm = tf.clip_by_global_norm(gradients, clip_gradient)
-            else:
-                gradient_norm = tf.linalg.global_norm(gradients)
-            self._optimizer.apply_gradients(zip(gradient_norm, self.model.variables))
-
-            tf.summary.experimental.set_step(self._optimizer.iterations)
-            with self._writer.as_default():
-                for name,metrics in self._metrics.items():
-                    if name == "loss":
-                        metrics.reset_states()
-                        metrics.update_state(loss)
-                    else:
-                        metrics.reset_states()
-                        value = metrics(batch["labels"],probabilities)
-                        metrics.update_state(value)
-                    tf.summary.scalar("train/" + name, metrics.result())
-                tf.summary.scalar("train/gradient_norm", gradient_norm)
+        gradients = tape.gradient(loss, self.model.variables)
+        if clip_gradient:
+            gradients, gradient_norm = tf.clip_by_global_norm(gradients, clip_gradient)
+        else:
+            gradient_norm = tf.linalg.global_norm(gradients)
+        self._optimizer.apply_gradients(zip(gradients, self.model.variables))
+        tf.summary.experimental.set_step(self._optimizer.iterations)
+        with self._writer.as_default():
+            for name,metric in self._metrics.items():
+                if name == "loss":
+                    metric(loss)
+                else:
+                    metric.reset_states()
+                    metric(batch["labels"],probabilities)
+                tf.summary.scalar("train/" + name, metric.result())
+            tf.summary.scalar("train/gradient_norm", gradient_norm)
 
         ############################################################################################# 
 
@@ -152,24 +139,22 @@ class Network:
         #   using the gold labels and the predictions)
         #
         # Finally, create a dictionary `metrics` with results, using names and values in `self._metrics`.
+        for name, metric in self._metrics.items():
+            metric.reset_states()
         for batch in dataset.batches(args.batch_size):
             probs = self.predict_batch(batch)
             loss = self._loss(batch["labels"], probs)
-
-            with self._writer.as_default():
-                for name, metric in self._metrics.items():
-                    if name == "loss":
-                        metric.reset_states()
-                        metric.update_state(loss)
-                    else:
-                        metric.reset_states()
-                        value = metric(batch["labels"], probs)
-                        metric.update_state(value)
-                    tf.summary.scalar("test/" + name, metric)
-
-                metrics = {}
-                for name, metric in self._metrics.items():
-                    metrics[name] = metric.result()
+            for name, metric in self._metrics.items():
+                if name == "loss":
+                    metric(loss)
+                else:
+                    metric(batch['labels'], probs)
+        metrics = {}
+        for name, metric in self._metrics.items():
+            metrics[name] = metric.result()
+        with self._writer.as_default():
+            for name, metric in metrics.items():
+                tf.summary.scalar("test/" + name, metric)
         return metrics
 
 if __name__ == "__main__":
