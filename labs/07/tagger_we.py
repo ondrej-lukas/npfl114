@@ -13,16 +13,22 @@ class Network:
         word_ids = tf.keras.layers.Input(shape=(None,),dtype=tf.int32)
         # TODO: Embed input words with dimensionality `args.we_dim`, using
         # `mask_zero=True`.
-        size = tf.size(word_ids)
-        embedded = tf.keras.layers.Embedding(input_dim=(None,), output_dim=args.we_dim, mask_zero=True)(word_ids)
+        embedded = tf.keras.layers.Embedding(input_dim=num_words, output_dim=args.we_dim, mask_zero=True)(word_ids)
         # TODO: Create specified `args.rnn_cell` RNN cell (LSTM, GRU) with
         # dimension `args.rnn_cell_dim` and apply it in a bidirectional way on
         # the embedded words, concatenating opposite directions.
 
         # TODO: Add a softmax classification layer into `num_tags` classes, storing
         # the outputs in `predictions`.
-        hidden = tf.keras.layers.Bidirectional(getattr(tf.keras.layers, args.rnn_cell)(args.rnn_cell_dim), merge_mode="concat")(embedded)
-        predictions = tf.keras.layers.Dense(num_tags,activation="sigmoid")(hidden)
+        # hidden = tf.keras.layers.Bidirectional(getattr(tf.keras.layers, args.rnn_cell)(args.rnn_cell_dim), merge_mode="concat")(embedded)
+        if args.rnn_cell == "LSTM":
+            hidden = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(args.rnn_cell_dim),
+                                                   merge_mode="concat")(embedded)
+        elif args.rnn_cell == "GRU":
+            hidden = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(args.rnn_cell_dim),
+                                                   merge_mode="concat")(embedded)
+
+        predictions = tf.keras.layers.Dense(num_tags,activation="softmax")(hidden)
         self.model = tf.keras.Model(inputs=word_ids, outputs=predictions)
         self.model.compile(optimizer=tf.optimizers.Adam(),
                            loss=tf.losses.SparseCategoricalCrossentropy(),
@@ -40,9 +46,12 @@ class Network:
             # Additionally, pass `reset_metrics=True`.
             #
             # Store the computed metrics in `metrics`.
-            inputs = np.expand_dims(batch[dataset.FORMS].word_ids, axis=2)
-            targets = np.expand_dims(batch[dataset.TAGS].word_ids, axis=2)
+            inputs = np.expand_dims(batch[dataset.FORMS].word_ids, axis=2)[0]
+            targets = np.expand_dims(batch[dataset.TAGS].word_ids, axis=2)[0]
             self.model.train_on_batch(inputs, targets, reset_metrics=True)
+            metrics = []
+            for name, metric in self._metrics.items():
+                metric(inputs,targets)
             tf.summary.experimental.set_step(self.model.optimizer.iterations)
             with self._writer.as_default():
                 for name, value in zip(self.model.metrics_names, metrics):
@@ -51,14 +60,17 @@ class Network:
     def evaluate(self, dataset, dataset_name, args):
         # We assume that model metric are resetted at this point.
         for batch in dataset.batches(args.batch_size):
-            inputs = batch[dataset.FORMS]
-            targets = np.expand_dims(batch[dataset.TAGS], axis=2)
+            inputs = np.expand_dims(batch[dataset.FORMS].word_ids, axis=2)[0]
+            targets = np.expand_dims(batch[dataset.TAGS].word_ids, axis=2)[0]
             self.model.test_on_batch(inputs, targets, reset_metrics=False)
             #self.model.predict_on_batch(batch[dataset.FORMS], reset_metrics=False)
             # TODO: Evaluate the given batch, using the same inputs as in training.
             # Additionally, pass `reset_metrics=False` to aggregate the metrics.
             # Store the metrics of the last batch as `metrics`.
-        self.model.reset_metrics()
+        # self.model.reset_metrics()
+        metrics = []
+        for m in self.model.metrics_names:
+            metrics.append(m.result())
 
         metrics = dict(zip(self.model.metrics_names, metrics))
         with self._writer.as_default():
@@ -82,7 +94,7 @@ if __name__ == "__main__":
     parser.add_argument("--recodex", default=False, action="store_true", help="Evaluation in ReCodEx.")
     parser.add_argument("--rnn_cell", default="LSTM", type=str, help="RNN cell type.")
     parser.add_argument("--rnn_cell_dim", default=64, type=int, help="RNN cell dimension.")
-    parser.add_argument("--threads", default=1, type=int, help="Maximum number of threads to use.")
+    parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
     parser.add_argument("--we_dim", default=128, type=int, help="Word embedding dimension.")
     args = parser.parse_args()
 
