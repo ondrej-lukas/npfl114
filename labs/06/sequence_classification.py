@@ -52,7 +52,6 @@ class Network:
         sequences = getattr(tf.keras.layers, args.rnn_cell)(args.rnn_cell_dim, return_sequences=True)(sequences_i)
         if args.hidden_layer:
             sequences = tf.keras.layers.Dense(args.hidden_layer, activation='relu')(sequences)
-        # TODO: Generate predictions using a fully connected layer
         # with one output and `tf.nn.sigmoid` activation.
         predictions = tf.keras.layers.Dense(1,activation="sigmoid")(sequences)
         self.model = tf.keras.Model(inputs=sequences_i, outputs=predictions)
@@ -184,6 +183,7 @@ if __name__ == "__main__":
     tf.random.set_seed(42)
     if args.recodex:
         tf.keras.utils.get_custom_objects()["glorot_uniform"] = lambda: tf.keras.initializers.glorot_uniform(seed=42)
+        tf.keras.utils.get_custom_objects()["orthogonal"] = lambda: tf.keras.initializers.orthogonal(seed=42)
     tf.config.threading.set_inter_op_parallelism_threads(args.threads)
     tf.config.threading.set_intra_op_parallelism_threads(args.threads)
 
