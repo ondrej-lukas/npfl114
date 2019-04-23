@@ -246,6 +246,25 @@ Competition task
 - generate annotations for the test set 
 - 50% limit 
 
+Cviceni 8
+---------
+Tagger competition 
+- 1,5 mil. words in train dataset 
+- 15 character string, 1.5k tags 
+- additional data can be used
+- word embedding by to mohl dat taky (mozna s vice datasetama)
+
+3D object recognition 
+- classify 3d object
+- 10 classes
+- after creating dataset I will get H,W,D
+- can use compile and fit (unless I want to create my own batches)
+- can use sequence model
+- extension of image classification -> 3D convolution can be used 
+
+	
+
+
 
 
 
