@@ -13,7 +13,8 @@ class Network:
         word_ids = tf.keras.layers.Input(shape=(None,),dtype=tf.int32)
         # TODO: Embed input words with dimensionality `args.we_dim`, using
         # `mask_zero=True`.
-        embedded = tf.keras.layers.Embedding(input_dim=, output_dim=args.we_dim, mask_zero=True)(word_ids)
+        size = tf.size(word_ids)
+        embedded = tf.keras.layers.Embedding(input_dim=(None,), output_dim=args.we_dim, mask_zero=True)(word_ids)
         # TODO: Create specified `args.rnn_cell` RNN cell (LSTM, GRU) with
         # dimension `args.rnn_cell_dim` and apply it in a bidirectional way on
         # the embedded words, concatenating opposite directions.
@@ -39,8 +40,8 @@ class Network:
             # Additionally, pass `reset_metrics=True`.
             #
             # Store the computed metrics in `metrics`.
-            inputs = batch[dataset.FORMS]
-            targets = np.expand_dims(batch[dataset.TAGS], axis=2)
+            inputs = np.expand_dims(batch[dataset.FORMS].word_ids, axis=2)
+            targets = np.expand_dims(batch[dataset.TAGS].word_ids, axis=2)
             self.model.train_on_batch(inputs, targets, reset_metrics=True)
             tf.summary.experimental.set_step(self.model.optimizer.iterations)
             with self._writer.as_default():
