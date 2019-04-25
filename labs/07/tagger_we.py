@@ -51,15 +51,15 @@ class Network:
             # Store the computed metrics in `metrics`.
             inputs = np.expand_dims(batch[dataset.FORMS].word_ids, axis=2)[0]
             targets = np.expand_dims(batch[dataset.TAGS].word_ids, axis=2)[0]
-            self.model.train_on_batch(inputs, targets, reset_metrics=True)
-            metrics = []
-            m_ix = 0
-            for m in self.model.metrics_names:
-                if m == 'loss':
-                    metrics.append(self.model.loss(targets, self.model(inputs)))
-                else:
-                    metrics.append(self.model.metrics[m_ix](targets, self.model(inputs)))
-                    m_ix += 1
+            m = self.model.train_on_batch(inputs, targets, reset_metrics=True)
+            metrics = m
+            # m_ix = 0
+            # for m in self.model.metrics_names:
+            #     if m == 'loss':
+            #         metrics.append(self.model.loss(targets, self.model(inputs)))
+            #     else:
+            #         metrics.append(self.model.metrics[m_ix](targets, self.model(inputs)))
+            #         m_ix += 1
             tf.summary.experimental.set_step(self.model.optimizer.iterations)
             with self._writer.as_default():
                 for name, value in zip(self.model.metrics_names, metrics):
@@ -71,20 +71,20 @@ class Network:
         for batch in dataset.batches(args.batch_size):
             inputs = np.expand_dims(batch[dataset.FORMS].word_ids, axis=2)[0]
             targets = np.expand_dims(batch[dataset.TAGS].word_ids, axis=2)[0]
-            self.model.test_on_batch(inputs, targets, reset_metrics=False)
+            m = self.model.test_on_batch(inputs, targets, reset_metrics=False)
             #self.model.predict_on_batch(batch[dataset.FORMS], reset_metrics=False)
             # TODO: Evaluate the given batch, using the same inputs as in training.
             # Additionally, pass `reset_metrics=False` to aggregate the metrics.
             # Store the metrics of the last batch as `metrics`.
         # self.model.reset_metrics()
-        metrics = []
-        m_ix = 0
-        for m in self.model.metrics_names:
-            if m == 'loss':
-                metrics.append(self.model.loss(targets, self.model(inputs)))
-            else:
-                metrics.append(self.model.metrics[m_ix](targets, self.model(inputs)))
-                m_ix += 1
+        metrics = m
+        # m_ix = 0
+        # for m in self.model.metrics_names:
+        #     if m == 'loss':
+        #         metrics.append(self.model.loss(targets, self.model(inputs)))
+        #     else:
+        #         metrics.append(self.model.metrics[m_ix](targets, self.model(inputs)))
+        #         m_ix += 1
 
         metrics = dict(zip(self.model.metrics_names, metrics))
         with self._writer.as_default():
@@ -103,7 +103,7 @@ if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch_size", default=10, type=int, help="Batch size.")
-    parser.add_argument("--epochs", default=10, type=int, help="Number of epochs.")
+    parser.add_argument("--epochs", default=1, type=int, help="Number of epochs.")
     parser.add_argument("--max_sentences", default=5000, type=int, help="Maximum number of sentences to load.")
     parser.add_argument("--recodex", default=False, action="store_true", help="Evaluation in ReCodEx.")
     parser.add_argument("--rnn_cell", default="LSTM", type=str, help="RNN cell type.")
