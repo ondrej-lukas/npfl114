@@ -53,8 +53,13 @@ class Network:
             targets = np.expand_dims(batch[dataset.TAGS].word_ids, axis=2)[0]
             self.model.train_on_batch(inputs, targets, reset_metrics=True)
             metrics = []
-            for metric in self.model.metrics:
-                metric(inputs,targets)
+            m_ix = 0
+            for m in self.model.metrics_names:
+                if m == 'loss':
+                    metrics.append(self.model.loss(targets, self.model(inputs)))
+                else:
+                    metrics.append(self.model.metrics[m_ix](targets, self.model(inputs)))
+                    m_ix += 1
             tf.summary.experimental.set_step(self.model.optimizer.iterations)
             with self._writer.as_default():
                 for name, value in zip(self.model.metrics_names, metrics):
@@ -133,7 +138,7 @@ if __name__ == "__main__":
     for epoch in range(args.epochs):
         network.train_epoch(morpho.train, args)
         metrics = network.evaluate(morpho.dev, "dev", args)
-        print(metrics)
+        # print(metrics)
 
     metrics = network.evaluate(morpho.test, "test", args)
     with open("tagger_we.out", "w") as out_file:
