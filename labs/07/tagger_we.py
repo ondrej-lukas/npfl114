@@ -66,7 +66,7 @@ class Network:
                     tf.summary.scalar("train/{}".format(name), value)
 
     def evaluate(self, dataset, dataset_name, args):
-        self.model.reset_metrics()
+        # self.model.reset_metrics()
         # We assume that model metric are resetted at this point.
         for batch in dataset.batches(args.batch_size):
             inputs = np.expand_dims(batch[dataset.FORMS].word_ids, axis=2)[0]
@@ -76,16 +76,8 @@ class Network:
             # TODO: Evaluate the given batch, using the same inputs as in training.
             # Additionally, pass `reset_metrics=False` to aggregate the metrics.
             # Store the metrics of the last batch as `metrics`.
-        # self.model.reset_metrics()
+        self.model.reset_metrics()
         metrics = m
-        # m_ix = 0
-        # for m in self.model.metrics_names:
-        #     if m == 'loss':
-        #         metrics.append(self.model.loss(targets, self.model(inputs)))
-        #     else:
-        #         metrics.append(self.model.metrics[m_ix](targets, self.model(inputs)))
-        #         m_ix += 1
-
         metrics = dict(zip(self.model.metrics_names, metrics))
         with self._writer.as_default():
             for name, value in metrics.items():

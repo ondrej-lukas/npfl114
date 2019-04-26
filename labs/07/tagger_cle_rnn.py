@@ -9,18 +9,23 @@ class Network:
         # TODO(we): Implement a one-layer RNN network. The input
         # `word_ids` consists of a batch of sentences, each
         # a sequence of word indices. Padded words have index 0.
+        word_ids = tf.keras.layers.Input(shape=(None,), dtype=tf.int32)
 
         # TODO: Apart from `word_ids`, RNN CLEs utilize two more
         # inputs, `charseqs` containing unique words in batches (each word
         # being a sequence of character indices, padding characters again
         # have index 0) and `charseq_ids` with the same shape as `word_ids`,
         # but with indices pointing into `charseqs`.
+        charseqs = tf.keras.layers.Input(shape=(None,), dtype=tf.int32)
+        charseq_ids = tf.keras.layers.Input(shape=(None,), dtype=tf.int32)
 
         # TODO: Embed the characters in `charseqs` using embeddings of size
         # `args.cle_dim`, masking zero indices. Then, pass the embedded characters
         # through a bidirectional GRU with dimension `args.cle_dim`, concatenating
         # results in different dimensions.
-        #
+        embedded_chars = tf.keras.layers.Embedding(input_dim=num_chars, output_dim=args.cle_dim, mask_zero=True)(charseqs)
+        gru_chars = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(args.cle_dim, merge_mode="concat"))(embedded_chars)
+
         # Then, copy the computed embeddings of unique words to the correct sentence
         # positions. To that end, use `tf.gather` operation, which is given a matrix
         # and a tensor of indices, and replace each index by a corresponding row
@@ -30,15 +35,20 @@ class Network:
 
         # TODO(we): Embed input words with dimensionality `args.we_dim`, using
         # `mask_zero=True`.
+        embedded_words = tf.keras.layers.Embedding(input_dim=num_words, output_dim=args.we_dim, mask_zero=True)(word_ids)
 
         # TODO: Concatenate the WE and CLE embeddings (in this order).
+        concat = tf.keras.layers.Add()([embedded_words, gru_chars])
 
         # TODO(we): Create specified `args.rnn_cell` rnn cell (LSTM, GRU) with
         # dimension `args.rnn_cell_dim` and apply it in a bidirectional way on
         # the embedded words, concatenating opposite directions.
+        hidden = tf.keras.layers.Bidirectional(getattr(tf.keras.layers, args.rnn_cell)(args.rnn_cell_dim),
+                                               merge_mode="concat")(concat)
 
         # TODO(we): Add a softmax classification layer into `num_tags` classes, storing
         # the outputs in `predictions`.
+        predictions = tf.keras.layers.Dense(num_tags, activation="softmax")(hidden)
 
         self.model = tf.keras.Model(inputs=[word_ids, charseq_ids, charseqs], outputs=predictions)
 
