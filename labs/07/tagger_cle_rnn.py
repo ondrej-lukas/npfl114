@@ -24,7 +24,7 @@ class Network:
         # through a bidirectional GRU with dimension `args.cle_dim`, concatenating
         # results in different dimensions.
         embedded_chars = tf.keras.layers.Embedding(input_dim=num_chars, output_dim=args.cle_dim, mask_zero=True)(charseqs)
-        gru_chars = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(args.cle_dim, merge_mode="concat"))(embedded_chars)
+        gru_chars = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(args.cle_dim),merge_mode="concat")(embedded_chars)
 
         # Then, copy the computed embeddings of unique words to the correct sentence
         # positions. To that end, use `tf.gather` operation, which is given a matrix
@@ -57,16 +57,21 @@ class Network:
         # TODO: Create two metrics in self._metrics dictionary:
         #  - "loss", which is tf.metrics.Mean()
         #  - "accuracy", which is suitable accuracy
+        self._optimizer = tf.optimizers.Adam()
+        self._loss = loss=tf.losses.SparseCategoricalCrossentropy()
+        self._metrics = {'loss':tf.metrics.Mean(),'accuracy':tf.metrics.Accuracy()}
+
         self._writer = tf.summary.create_file_writer(args.logdir, flush_millis=10 * 1000)
 
-    @tf.function(input_signature=[[tf.TensorSpec(shape=[None, None], dtype=tf.int32)] * 3,
-                                  tf.TensorSpec(shape=[None, None], dtype=tf.int32)])
+    # @tf.function(input_signature=[[tf.TensorSpec(shape=[None, None], dtype=tf.int32)] * 3,
+    #                               tf.TensorSpec(shape=[None, None], dtype=tf.int32)])
     def train_batch(self, inputs, tags):
-        # TODO: Generate a mask from `tags` containing ones in positions
-        # where tags are nonzero (using `tf.not_equal`).
+        # TODO: Generate a mask from `tags` containing ones in positions where tags are nonzero (using `tf.not_equal`).
+        mask = tf.not_equal(tags,0)
         with tf.GradientTape() as tape:
             probabilities = self.model(inputs, training=True)
             # TODO: Compute `loss` using `self._loss`, passing the generated
+            loss = self._loss(tags,probabilities,mask)
             # tag mask as third parameter.
         gradients = tape.gradient(loss, self.model.variables)
         self._optimizer.apply_gradients(zip(gradients, self.model.variables))
@@ -78,6 +83,7 @@ class Network:
                 if name == "loss": metric(loss)
                 else: # TODO: Update the `metric` using gold `tags` and generated `probabilities`,
                       # passing the tag mask as third argument.
+                    metric(tags, probabilities)
                 tf.summary.scalar("train/{}".format(name), metric.result())
 
     def train_epoch(self, dataset, args):
@@ -97,12 +103,14 @@ class Network:
             if name == "loss": metric(loss)
             else: # TODO: Update the `metric` using gold `tags` and generated `probabilities`,
                   # passing the tag mask as third argument.
+                pass
 
     def evaluate(self, dataset, dataset_name, args):
         for metric in self._metrics.values():
             metric.reset_states()
         for batch in dataset.batches(args.batch_size):
             # TODO: Evaluate the given match, using the same inputs as in training.
+            pass
 
         metrics = {name: metric.result() for name, metric in self._metrics.items()}
         with self._writer.as_default():
