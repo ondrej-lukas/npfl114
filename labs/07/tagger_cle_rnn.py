@@ -32,13 +32,14 @@ class Network:
         # of the matrix. You need to wrap the `tf.gather` in `tf.keras.layers.Lambda`
         # because of a bug [fixed 6 days ago in the master], so the call shoud look like
         # `tf.keras.layers.Lambda(lambda args: tf.gather(*args))(...)`
+        replace = tf.keras.layers.Lambda(lambda t: tf.gather(t, charseq_ids))(gru_chars)
 
         # TODO(we): Embed input words with dimensionality `args.we_dim`, using
         # `mask_zero=True`.
         embedded_words = tf.keras.layers.Embedding(input_dim=num_words, output_dim=args.we_dim, mask_zero=True)(word_ids)
 
         # TODO: Concatenate the WE and CLE embeddings (in this order).
-        concat = tf.keras.layers.Add()([embedded_words, gru_chars])
+        concat = tf.keras.layers.Add()([embedded_words, replace])
 
         # TODO(we): Create specified `args.rnn_cell` rnn cell (LSTM, GRU) with
         # dimension `args.rnn_cell_dim` and apply it in a bidirectional way on
@@ -63,8 +64,8 @@ class Network:
 
         self._writer = tf.summary.create_file_writer(args.logdir, flush_millis=10 * 1000)
 
-    # @tf.function(input_signature=[[tf.TensorSpec(shape=[None, None], dtype=tf.int32)] * 3,
-    #                               tf.TensorSpec(shape=[None, None], dtype=tf.int32)])
+    @tf.function(input_signature=[[tf.TensorSpec(shape=[None, None], dtype=tf.int32)] * 3,
+                                  tf.TensorSpec(shape=[None, None], dtype=tf.int32)])
     def train_batch(self, inputs, tags):
         # TODO: Generate a mask from `tags` containing ones in positions where tags are nonzero (using `tf.not_equal`).
         mask = tf.not_equal(tags,0)
@@ -130,12 +131,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch_size", default=10, type=int, help="Batch size.")
     parser.add_argument("--cle_dim", default=32, type=int, help="CLE embedding dimension.")
-    parser.add_argument("--epochs", default=10, type=int, help="Number of epochs.")
+    parser.add_argument("--epochs", default=1, type=int, help="Number of epochs.")
     parser.add_argument("--max_sentences", default=5000, type=int, help="Maximum number of sentences to load.")
     parser.add_argument("--recodex", default=False, action="store_true", help="Evaluation in ReCodEx.")
     parser.add_argument("--rnn_cell", default="LSTM", type=str, help="RNN cell type.")
     parser.add_argument("--rnn_cell_dim", default=64, type=int, help="RNN cell dimension.")
-    parser.add_argument("--threads", default=1, type=int, help="Maximum number of threads to use.")
+    parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
     parser.add_argument("--we_dim", default=64, type=int, help="Word embedding dimension.")
     args = parser.parse_args()
 

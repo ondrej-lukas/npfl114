@@ -24,17 +24,11 @@ class Network:
         # TODO: Add a softmax classification layer into `num_tags` classes, storing
         # the outputs in `predictions`.
         hidden = tf.keras.layers.Bidirectional(getattr(tf.keras.layers, args.rnn_cell)(args.rnn_cell_dim), merge_mode="concat")(embedded)
-        # if args.rnn_cell == "LSTM":
-        #     hidden = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(args.rnn_cell_dim),
-        #                                            merge_mode="concat")(embedded)
-        # elif args.rnn_cell == "GRU":
-        #     hidden = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(args.rnn_cell_dim),
-        #                                            merge_mode="concat")(embedded)
 
         predictions = tf.keras.layers.Dense(num_tags,activation="softmax")(hidden)
         self.model = tf.keras.Model(inputs=word_ids, outputs=predictions)
         self.model.compile(optimizer=tf.optimizers.Adam(),
-                           loss=tf.losses.SparseCategoricalCrossentropy(name="loss"),
+                           loss=tf.losses.SparseCategoricalCrossentropy(),
                            metrics=[tf.metrics.SparseCategoricalAccuracy(name="accuracy")])
 
         self._writer = tf.summary.create_file_writer(args.logdir, flush_millis=10 * 1000)
@@ -51,33 +45,25 @@ class Network:
             # Store the computed metrics in `metrics`.
             inputs = np.expand_dims(batch[dataset.FORMS].word_ids, axis=2)[0]
             targets = np.expand_dims(batch[dataset.TAGS].word_ids, axis=2)[0]
-            m = self.model.train_on_batch(inputs, targets, reset_metrics=True)
-            metrics = m
-            # m_ix = 0
-            # for m in self.model.metrics_names:
-            #     if m == 'loss':
-            #         metrics.append(self.model.loss(targets, self.model(inputs)))
-            #     else:
-            #         metrics.append(self.model.metrics[m_ix](targets, self.model(inputs)))
-            #         m_ix += 1
+            metrics = self.model.train_on_batch(inputs, targets, reset_metrics=True)
+
             tf.summary.experimental.set_step(self.model.optimizer.iterations)
             with self._writer.as_default():
                 for name, value in zip(self.model.metrics_names, metrics):
                     tf.summary.scalar("train/{}".format(name), value)
 
     def evaluate(self, dataset, dataset_name, args):
-        # self.model.reset_metrics()
+        self.model.reset_metrics()
         # We assume that model metric are resetted at this point.
         for batch in dataset.batches(args.batch_size):
             inputs = np.expand_dims(batch[dataset.FORMS].word_ids, axis=2)[0]
             targets = np.expand_dims(batch[dataset.TAGS].word_ids, axis=2)[0]
-            m = self.model.test_on_batch(inputs, targets, reset_metrics=False)
-            #self.model.predict_on_batch(batch[dataset.FORMS], reset_metrics=False)
+            metrics = self.model.test_on_batch(inputs, targets, reset_metrics=False)
+
             # TODO: Evaluate the given batch, using the same inputs as in training.
             # Additionally, pass `reset_metrics=False` to aggregate the metrics.
             # Store the metrics of the last batch as `metrics`.
         self.model.reset_metrics()
-        metrics = m
         metrics = dict(zip(self.model.metrics_names, metrics))
         with self._writer.as_default():
             for name, value in metrics.items():
@@ -94,13 +80,13 @@ if __name__ == "__main__":
 
     # Parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size", default=10, type=int, help="Batch size.")
-    parser.add_argument("--epochs", default=1, type=int, help="Number of epochs.")
+    parser.add_argument("--batch_size", default=1, type=int, help="Batch size.")
+    parser.add_argument("--epochs", default=10, type=int, help="Number of epochs.")
     parser.add_argument("--max_sentences", default=5000, type=int, help="Maximum number of sentences to load.")
     parser.add_argument("--recodex", default=False, action="store_true", help="Evaluation in ReCodEx.")
     parser.add_argument("--rnn_cell", default="LSTM", type=str, help="RNN cell type.")
-    parser.add_argument("--rnn_cell_dim", default=16, type=int, help="RNN cell dimension.")
-    parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
+    parser.add_argument("--rnn_cell_dim", default=64, type=int, help="RNN cell dimension.")
+    parser.add_argument("--threads", default=1, type=int, help="Maximum number of threads to use.")
     parser.add_argument("--we_dim", default=128, type=int, help="Word embedding dimension.")
     args = parser.parse_args()
 
