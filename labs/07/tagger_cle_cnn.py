@@ -34,10 +34,10 @@ class Network:
 
         results = []
         for width in range(2, args.cnn_max_width):
-            res = tf.keras.layers.Conv1D(args.cnn_filters, width, 1, 'valid', activation="relu")(embedded_chars)
+            res = tf.keras.layers.Conv1D(args.cnn_filters, width, 1, "valid", activation="relu")(embedded_chars)
             mp = tf.keras.layers.GlobalMaxPool1D()(res)
             results.append(mp)
-        resses = tf.stack(results)
+        resses = tf.concat(results,axis=1)
 
         d1 = tf.keras.layers.Dense(args.we_dim, "relu")(resses)
         # print(d1.get_shape())
@@ -49,7 +49,7 @@ class Network:
         # because of a bug [fixed 6 days ago in the master], so the call shoud look like
         # `tf.keras.layers.Lambda(lambda args: tf.gather(*args))(...)`
         replace = tf.keras.layers.Lambda(lambda args: tf.gather(*args))([d1, charseq_ids])
-        print(replace.get_shape())
+        # print(replace.get_shape())
 
         # TODO(we): Embed input words with dimensionality `args.we_dim`, using
         # `mask_zero=True`.
@@ -76,16 +76,22 @@ class Network:
         # TODO(cle_rnn): Create two metrics in self._metrics dictionary:
         #  - "loss", which is tf.metrics.Mean()
         #  - "accuracy", which is suitable accuracy
+        self._optimizer = tf.optimizers.Adam()
+        self._loss = tf.losses.SparseCategoricalCrossentropy()
+        self._metrics = {'loss': tf.metrics.Mean(), 'accuracy': tf.metrics.SparseCategoricalAccuracy()}
         self._writer = tf.summary.create_file_writer(args.logdir, flush_millis=10 * 1000)
 
-    @tf.function(input_signature=[[tf.TensorSpec(shape=[None, None], dtype=tf.int32)] * 3,
-                                  tf.TensorSpec(shape=[None, None], dtype=tf.int32)])
+    # @tf.function(input_signature=[[tf.TensorSpec(shape=[None, None], dtype=tf.int32)] * 3,
+    #                               tf.TensorSpec(shape=[None, None], dtype=tf.int32)])
     def train_batch(self, inputs, tags):
-        # TODO(cle_rnn): Generate a mask from `tags` containing ones in positions
-        # where tags are nonzero (using `tf.not_equal`).
+        # TODO: Generate a mask from `tags` containing ones in positions where tags are nonzero (using `tf.not_equal`).
+        tags_ex = np.expand_dims(tags,axis=2)
+        mask = tf.not_equal(tags_ex,0)
+
         with tf.GradientTape() as tape:
             probabilities = self.model(inputs, training=True)
-            # TODO(cle_rnn): Compute `loss` using `self._loss`, passing the generated
+            # TODO: Compute `loss` using `self._loss`, passing the generated
+            loss = self._loss(tags_ex,probabilities,mask)
             # tag mask as third parameter.
         gradients = tape.gradient(loss, self.model.variables)
         self._optimizer.apply_gradients(zip(gradients, self.model.variables))
@@ -95,9 +101,9 @@ class Network:
             for name, metric in self._metrics.items():
                 metric.reset_states()
                 if name == "loss": metric(loss)
-                else: # TODO(cle_rnn): Update the `metric` using gold `tags` and generated `probabilities`,
+                else: # TODO: Update the `metric` using gold `tags` and generated `probabilities`,
                       # passing the tag mask as third argument.
-                    pass
+                    metric(tags_ex, probabilities, mask)
                 tf.summary.scalar("train/{}".format(name), metric.result())
 
     def train_epoch(self, dataset, args):
@@ -105,26 +111,30 @@ class Network:
             self.train_batch([batch[dataset.FORMS].word_ids, batch[dataset.FORMS].charseq_ids, batch[dataset.FORMS].charseqs],
                              batch[dataset.TAGS].word_ids)
 
-    @tf.function(input_signature=[[tf.TensorSpec(shape=[None, None], dtype=tf.int32)] * 3,
-                                  tf.TensorSpec(shape=[None, None], dtype=tf.int32)])
+    # @tf.function(input_signature=[[tf.TensorSpec(shape=[None, None], dtype=tf.int32)] * 3,
+    #                               tf.TensorSpec(shape=[None, None], dtype=tf.int32)])
     def evaluate_batch(self, inputs, tags):
-        # TODO(cle_rnn): Again generate a mask from `tags` containing ones in positions
+        # TODO: Again generate a mask from `tags` containing ones in positions
         # where tags are nonzero (using `tf.not_equal`).
+        tags_ex = np.expand_dims(tags, axis=2)
+        mask = tf.not_equal(tags_ex, 0)
         probabilities = self.model(inputs, training=False)
-        # TODO(cle_rnn): Compute `loss` using `self._loss`, passing the generated
+        # TODO: Compute `loss` using `self._loss`, passing the generated
         # tag mask as third parameter.
+        loss = self._loss(tags_ex, probabilities, mask)
         for name, metric in self._metrics.items():
             if name == "loss": metric(loss)
-            else: # TODO(cle_rnn): Update the `metric` using gold `tags` and generated `probabilities`,
+            else: # TODO: Update the `metric` using gold `tags` and generated `probabilities`,
                   # passing the tag mask as third argument.
-                pass
+                metric(tags_ex, probabilities,mask)
 
     def evaluate(self, dataset, dataset_name, args):
         for metric in self._metrics.values():
             metric.reset_states()
         for batch in dataset.batches(args.batch_size):
-            # TODO(cle_rnn): Evaluate the given match, using the same inputs as in training.
-            pass
+            # TODO: Evaluate the given match, using the same inputs as in training.
+            self.evaluate_batch([batch[dataset.FORMS].word_ids, batch[dataset.FORMS].charseq_ids, batch[dataset.FORMS].charseqs],
+                             batch[dataset.TAGS].word_ids)
 
         metrics = {name: metric.result() for name, metric in self._metrics.items()}
         with self._writer.as_default():
