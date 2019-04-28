@@ -32,7 +32,7 @@ class Network:
         # of the matrix. You need to wrap the `tf.gather` in `tf.keras.layers.Lambda`
         # because of a bug [fixed 6 days ago in the master], so the call shoud look like
         # `tf.keras.layers.Lambda(lambda args: tf.gather(*args))(...)`
-        replace = tf.keras.layers.Lambda(lambda t: tf.gather(t, charseq_ids))(gru_chars)
+        replace = tf.keras.layers.Lambda(lambda args: tf.gather(*args))([gru_chars, charseq_ids])
 
         # TODO(we): Embed input words with dimensionality `args.we_dim`, using
         # `mask_zero=True`.
@@ -63,6 +63,10 @@ class Network:
         self._metrics = {'loss':tf.metrics.Mean(),'accuracy':tf.metrics.Accuracy()}
 
         self._writer = tf.summary.create_file_writer(args.logdir, flush_millis=10 * 1000)
+
+        # print('Embedded chars: ', embedded_chars.get_shape(), 'GRU chars: ', gru_chars.get_shape(), \
+        #     'Replace: ', replace.get_shape(), 'Embedded words: ', embedded_words.get_shape(), \
+        #     'Concat: ', concat.get_shape())
 
     @tf.function(input_signature=[[tf.TensorSpec(shape=[None, None], dtype=tf.int32)] * 3,
                                   tf.TensorSpec(shape=[None, None], dtype=tf.int32)])
