@@ -24,7 +24,7 @@ class Network:
         # through a bidirectional GRU with dimension `args.cle_dim`, concatenating
         # results in different dimensions.
         embedded_chars = tf.keras.layers.Embedding(input_dim=num_chars, output_dim=args.cle_dim, mask_zero=True)(charseqs)
-        gru_chars = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(args.cle_dim),merge_mode="concat")(embedded_chars)
+        gru_chars = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(args.cle_dim,return_sequences=True),merge_mode="concat")(embedded_chars)
 
         # Then, copy the computed embeddings of unique words to the correct sentence
         # positions. To that end, use `tf.gather` operation, which is given a matrix
@@ -33,18 +33,17 @@ class Network:
         # because of a bug [fixed 6 days ago in the master], so the call shoud look like
         # `tf.keras.layers.Lambda(lambda args: tf.gather(*args))(...)`
         replace = tf.keras.layers.Lambda(lambda args: tf.gather(*args))([gru_chars, charseq_ids])
-
         # TODO(we): Embed input words with dimensionality `args.we_dim`, using
         # `mask_zero=True`.
         embedded_words = tf.keras.layers.Embedding(input_dim=num_words, output_dim=args.we_dim, mask_zero=True)(word_ids)
 
         # TODO: Concatenate the WE and CLE embeddings (in this order).
-        concat = tf.keras.layers.Add()([embedded_words, replace])
+        concat = tf.keras.layers.Concatenate(axis=-1)([embedded_words, replace])
 
         # TODO(we): Create specified `args.rnn_cell` rnn cell (LSTM, GRU) with
         # dimension `args.rnn_cell_dim` and apply it in a bidirectional way on
         # the embedded words, concatenating opposite directions.
-        hidden = tf.keras.layers.Bidirectional(getattr(tf.keras.layers, args.rnn_cell)(args.rnn_cell_dim),
+        hidden = tf.keras.layers.Bidirectional(getattr(tf.keras.layers, args.rnn_cell)(args.rnn_cell_dim,return_sequences=True),
                                                merge_mode="concat")(concat)
 
         # TODO(we): Add a softmax classification layer into `num_tags` classes, storing
@@ -60,17 +59,17 @@ class Network:
         #  - "loss", which is tf.metrics.Mean()
         #  - "accuracy", which is suitable accuracy
         self._optimizer = tf.optimizers.Adam()
-        self._loss = tf.losses.BinaryCrossentropy()
+        self._loss = tf.losses.SparseCategoricalCrossentropy()
         self._metrics = {'loss':tf.metrics.Mean(),'accuracy':tf.metrics.Accuracy()}
 
         self._writer = tf.summary.create_file_writer(args.logdir, flush_millis=10 * 1000)
 
         print('Embedded chars: ', embedded_chars.get_shape(), 'GRU chars: ', gru_chars.get_shape(), \
-            'Replace: ', replace.get_shape(), 'Embedded words: ', embedded_words.get_shape(), \
-            'Concat: ', concat.get_shape(), 'Predictions: ', predictions.get_shape())
+            'Replace: ', replace.get_shape(), \
+           'Concat: ', concat.get_shape(), 'Predictions: ', predictions.get_shape())
 
-    @tf.function(input_signature=[[tf.TensorSpec(shape=[None, None], dtype=tf.int32)] * 3,
-                                  tf.TensorSpec(shape=[None, None], dtype=tf.int32)])
+    # @tf.function(input_signature=[[tf.TensorSpec(shape=[None, None], dtype=tf.int32)] * 3,
+    #                               tf.TensorSpec(shape=[None, None], dtype=tf.int32)])
     def train_batch(self, inputs, tags):
         # TODO: Generate a mask from `tags` containing ones in positions where tags are nonzero (using `tf.not_equal`).
         mask = tf.not_equal(tags,0)
@@ -173,14 +172,6 @@ if __name__ == "__main__":
                       num_words=len(morpho.train.data[morpho.train.FORMS].words),
                       num_tags=len(morpho.train.data[morpho.train.TAGS].words),
                       num_chars=len(morpho.train.data[morpho.train.FORMS].alphabet))
-
-    batch = morpho.dev.data
-    word_ids = (len(batch[morpho.Dataset.FORMS].word_ids),38)
-    charseq_ids= (len(batch[morpho.Dataset.FORMS].charseq_ids), 38)
-    charseqs = (len(batch[morpho.Dataset.FORMS].charseqs), 14)
-
-    # prediction = network.model.predict([batch[morpho.Dataset.FORMS].word_ids,batch[morpho.Dataset.FORMS].charseq_ids,
-    #                                     batch[morpho.Dataset.FORMS].charseqs])
 
     for epoch in range(args.epochs):
         network.train_epoch(morpho.train, args)
