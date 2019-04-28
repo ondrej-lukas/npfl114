@@ -65,9 +65,9 @@ class Network:
 
         self._writer = tf.summary.create_file_writer(args.logdir, flush_millis=10 * 1000)
 
-        # print('Embedded chars: ', embedded_chars.get_shape(), 'GRU chars: ', gru_chars.get_shape(), \
-        #     'Replace: ', replace.get_shape(), 'Embedded words: ', embedded_words.get_shape(), \
-        #     'Concat: ', concat.get_shape())
+        print('Embedded chars: ', embedded_chars.get_shape(), 'GRU chars: ', gru_chars.get_shape(), \
+            'Replace: ', replace.get_shape(), 'Embedded words: ', embedded_words.get_shape(), \
+            'Concat: ', concat.get_shape(), 'Predictions: ', predictions.get_shape())
 
     @tf.function(input_signature=[[tf.TensorSpec(shape=[None, None], dtype=tf.int32)] * 3,
                                   tf.TensorSpec(shape=[None, None], dtype=tf.int32)])
@@ -174,15 +174,13 @@ if __name__ == "__main__":
                       num_tags=len(morpho.train.data[morpho.train.TAGS].words),
                       num_chars=len(morpho.train.data[morpho.train.FORMS].alphabet))
 
-    # batch = morpho.dev.data
-    # word_ids = (len(batch[morpho.Dataset.FORMS].word_ids),38)
-    # charseq_ids= (len(batch[morpho.Dataset.FORMS].charseq_ids), 38)
-    # charseqs = (len(batch[morpho.Dataset.FORMS].charseqs), 14)
+    batch = morpho.dev.data
+    word_ids = (len(batch[morpho.Dataset.FORMS].word_ids),38)
+    charseq_ids= (len(batch[morpho.Dataset.FORMS].charseq_ids), 38)
+    charseqs = (len(batch[morpho.Dataset.FORMS].charseqs), 14)
 
     # prediction = network.model.predict([batch[morpho.Dataset.FORMS].word_ids,batch[morpho.Dataset.FORMS].charseq_ids,
     #                                     batch[morpho.Dataset.FORMS].charseqs])
-
-    # replace = tf.keras.layers.Lambda(lambda args: tf.gather(*args))([batch[morpho.Dataset.FORMS].charseqs, batch[morpho.Dataset.FORMS].charseq_ids])
 
     for epoch in range(args.epochs):
         network.train_epoch(morpho.train, args)

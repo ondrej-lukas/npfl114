@@ -23,15 +23,25 @@ class Network:
 
         # TODO: Add a softmax classification layer into `num_tags` classes, storing
         # the outputs in `predictions`.
-        hidden = tf.keras.layers.Bidirectional(getattr(tf.keras.layers, args.rnn_cell)(args.rnn_cell_dim), merge_mode="concat")(embedded)
+        # hidden = tf.keras.layers.Bidirectional(getattr(tf.keras.layers, args.rnn_cell)(args.rnn_cell_dim), merge_mode="concat")(embedded)
+        if args.rnn_cell == "GRU":
+            hidden = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(args.rnn_cell_dim,return_sequences=True),
+                                                   merge_mode="concat")(embedded)
+        if args.rnn_cell == "LSTM":
+            hidden = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(args.rnn_cell_dim,return_sequences=True),
+                                                   merge_mode="concat")(embedded)
 
-        predictions = tf.keras.layers.Dense(num_tags,activation="softmax")(hidden)
-        self.model = tf.keras.Model(inputs=word_ids, outputs=predictions)
+        # predictions = tf.keras.layers.Softmax(-1)(hidden)
+        predictions = tf.keras.layers.Dense(num_tags,'softmax')(hidden)
+        self.model = tf.keras.Model(inputs=word_ids, outputs=hidden)
         self.model.compile(optimizer=tf.optimizers.Adam(),
                            loss=tf.losses.SparseCategoricalCrossentropy(),
                            metrics=[tf.metrics.SparseCategoricalAccuracy(name="accuracy")])
 
         self._writer = tf.summary.create_file_writer(args.logdir, flush_millis=10 * 1000)
+
+        # print('Word ids: ', word_ids.get_shape(), 'Embedded: ', embedded.get_shape(), \
+        #       'Hidden: ', hidden.get_shape(), 'Predictions: ', predictions.get_shape())
 
     def train_epoch(self, dataset, args):
         for batch in dataset.batches(args.batch_size):
@@ -43,8 +53,10 @@ class Network:
             # Additionally, pass `reset_metrics=True`.
             #
             # Store the computed metrics in `metrics`.
-            inputs = np.expand_dims(batch[dataset.FORMS].word_ids, axis=2)[0]
-            targets = np.expand_dims(batch[dataset.TAGS].word_ids, axis=2)[0]
+            # inputs = np.expand_dims(batch[dataset.TAGS].word_ids, axis=2)
+            inputs = batch[dataset.FORMS].word_ids
+            targets = np.expand_dims(batch[dataset.TAGS].word_ids, axis=2)
+            pred = self.model.predict(inputs)
             metrics = self.model.train_on_batch(inputs, targets, reset_metrics=True)
 
             tf.summary.experimental.set_step(self.model.optimizer.iterations)
@@ -56,8 +68,8 @@ class Network:
         self.model.reset_metrics()
         # We assume that model metric are resetted at this point.
         for batch in dataset.batches(args.batch_size):
-            inputs = np.expand_dims(batch[dataset.FORMS].word_ids, axis=2)[0]
-            targets = np.expand_dims(batch[dataset.TAGS].word_ids, axis=2)[0]
+            inputs = batch[dataset.FORMS].word_ids
+            targets = np.expand_dims(batch[dataset.TAGS].word_ids, axis=2)
             metrics = self.model.test_on_batch(inputs, targets, reset_metrics=False)
 
             # TODO: Evaluate the given batch, using the same inputs as in training.
@@ -80,8 +92,8 @@ if __name__ == "__main__":
 
     # Parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size", default=1, type=int, help="Batch size.")
-    parser.add_argument("--epochs", default=10, type=int, help="Number of epochs.")
+    parser.add_argument("--batch_size", default=10, type=int, help="Batch size.")
+    parser.add_argument("--epochs", default=1, type=int, help="Number of epochs.")
     parser.add_argument("--max_sentences", default=5000, type=int, help="Maximum number of sentences to load.")
     parser.add_argument("--recodex", default=False, action="store_true", help="Evaluation in ReCodEx.")
     parser.add_argument("--rnn_cell", default="LSTM", type=str, help="RNN cell type.")
@@ -116,7 +128,7 @@ if __name__ == "__main__":
     for epoch in range(args.epochs):
         network.train_epoch(morpho.train, args)
         metrics = network.evaluate(morpho.dev, "dev", args)
-        # print(metrics)
+        print(metrics)
 
     metrics = network.evaluate(morpho.test, "test", args)
     with open("tagger_we.out", "w") as out_file:
