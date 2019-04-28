@@ -16,8 +16,8 @@ class Network:
         # being a sequence of character indices, padding characters again
         # have index 0) and `charseq_ids` with the same shape as `word_ids`,
         # but with indices pointing into `charseqs`.
-        charseqs = tf.keras.layers.Input(shape=(None,), dtype=tf.int32)
         charseq_ids = tf.keras.layers.Input(shape=(None,), dtype=tf.int32)
+        charseqs = tf.keras.layers.Input(shape=(None,), dtype=tf.int32)
 
         # TODO: Embed the characters in `charseqs` using embeddings of size
         # `args.cle_dim`, masking zero indices. Then, pass the embedded characters
@@ -49,6 +49,7 @@ class Network:
 
         # TODO(we): Add a softmax classification layer into `num_tags` classes, storing
         # the outputs in `predictions`.
+        # hidden = tf.keras.layers.Flatten()(hidden)
         predictions = tf.keras.layers.Dense(num_tags, activation="softmax")(hidden)
 
         self.model = tf.keras.Model(inputs=[word_ids, charseq_ids, charseqs], outputs=predictions)
@@ -59,7 +60,7 @@ class Network:
         #  - "loss", which is tf.metrics.Mean()
         #  - "accuracy", which is suitable accuracy
         self._optimizer = tf.optimizers.Adam()
-        self._loss = loss=tf.losses.SparseCategoricalCrossentropy()
+        self._loss = tf.losses.BinaryCrossentropy()
         self._metrics = {'loss':tf.metrics.Mean(),'accuracy':tf.metrics.Accuracy()}
 
         self._writer = tf.summary.create_file_writer(args.logdir, flush_millis=10 * 1000)
@@ -95,20 +96,23 @@ class Network:
         for batch in dataset.batches(args.batch_size):
             self.train_batch([batch[dataset.FORMS].word_ids, batch[dataset.FORMS].charseq_ids, batch[dataset.FORMS].charseqs],
                              batch[dataset.TAGS].word_ids)
+            print("Batch trained")
 
     @tf.function(input_signature=[[tf.TensorSpec(shape=[None, None], dtype=tf.int32)] * 3,
                                   tf.TensorSpec(shape=[None, None], dtype=tf.int32)])
     def evaluate_batch(self, inputs, tags):
         # TODO: Again generate a mask from `tags` containing ones in positions
         # where tags are nonzero (using `tf.not_equal`).
+        mask = tf.not_equal(tags, 0)
         probabilities = self.model(inputs, training=False)
         # TODO: Compute `loss` using `self._loss`, passing the generated
         # tag mask as third parameter.
+        loss = self._loss(tags, probabilities, mask)
         for name, metric in self._metrics.items():
             if name == "loss": metric(loss)
             else: # TODO: Update the `metric` using gold `tags` and generated `probabilities`,
                   # passing the tag mask as third argument.
-                pass
+                metric(tags, probabilities)
 
     def evaluate(self, dataset, dataset_name, args):
         for metric in self._metrics.values():
@@ -169,6 +173,17 @@ if __name__ == "__main__":
                       num_words=len(morpho.train.data[morpho.train.FORMS].words),
                       num_tags=len(morpho.train.data[morpho.train.TAGS].words),
                       num_chars=len(morpho.train.data[morpho.train.FORMS].alphabet))
+
+    # batch = morpho.dev.data
+    # word_ids = (len(batch[morpho.Dataset.FORMS].word_ids),38)
+    # charseq_ids= (len(batch[morpho.Dataset.FORMS].charseq_ids), 38)
+    # charseqs = (len(batch[morpho.Dataset.FORMS].charseqs), 14)
+
+    # prediction = network.model.predict([batch[morpho.Dataset.FORMS].word_ids,batch[morpho.Dataset.FORMS].charseq_ids,
+    #                                     batch[morpho.Dataset.FORMS].charseqs])
+
+    # replace = tf.keras.layers.Lambda(lambda args: tf.gather(*args))([batch[morpho.Dataset.FORMS].charseqs, batch[morpho.Dataset.FORMS].charseq_ids])
+
     for epoch in range(args.epochs):
         network.train_epoch(morpho.train, args)
         metrics = network.evaluate(morpho.dev, "dev", args)
