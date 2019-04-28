@@ -23,17 +23,18 @@ class Network:
 
         # TODO: Add a softmax classification layer into `num_tags` classes, storing
         # the outputs in `predictions`.
-        # hidden = tf.keras.layers.Bidirectional(getattr(tf.keras.layers, args.rnn_cell)(args.rnn_cell_dim), merge_mode="concat")(embedded)
-        if args.rnn_cell == "GRU":
-            hidden = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(args.rnn_cell_dim,return_sequences=True),
-                                                   merge_mode="concat")(embedded)
-        if args.rnn_cell == "LSTM":
-            hidden = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(args.rnn_cell_dim,return_sequences=True),
-                                                   merge_mode="concat")(embedded)
+        hidden = tf.keras.layers.Bidirectional(getattr(tf.keras.layers, args.rnn_cell)(args.rnn_cell_dim,
+                                                        return_sequences=True), merge_mode="concat")(embedded)
+        # if args.rnn_cell == "GRU":
+        #     hidden = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(args.rnn_cell_dim,return_sequences=True),
+        #                                            merge_mode="concat")(embedded)
+        # elif args.rnn_cell == "LSTM":
+        #     hidden = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(args.rnn_cell_dim,return_sequences=True),
+        #                                            merge_mode="concat")(embedded)
 
         # predictions = tf.keras.layers.Softmax(-1)(hidden)
         predictions = tf.keras.layers.Dense(num_tags,'softmax')(hidden)
-        self.model = tf.keras.Model(inputs=word_ids, outputs=hidden)
+        self.model = tf.keras.Model(inputs=word_ids, outputs=predictions)
         self.model.compile(optimizer=tf.optimizers.Adam(),
                            loss=tf.losses.SparseCategoricalCrossentropy(),
                            metrics=[tf.metrics.SparseCategoricalAccuracy(name="accuracy")])
@@ -56,8 +57,8 @@ class Network:
             # inputs = np.expand_dims(batch[dataset.TAGS].word_ids, axis=2)
             inputs = batch[dataset.FORMS].word_ids
             targets = np.expand_dims(batch[dataset.TAGS].word_ids, axis=2)
-            pred = self.model.predict(inputs)
             metrics = self.model.train_on_batch(inputs, targets, reset_metrics=True)
+            # print("Train_on_batch")
 
             tf.summary.experimental.set_step(self.model.optimizer.iterations)
             with self._writer.as_default():
@@ -96,8 +97,8 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", default=1, type=int, help="Number of epochs.")
     parser.add_argument("--max_sentences", default=5000, type=int, help="Maximum number of sentences to load.")
     parser.add_argument("--recodex", default=False, action="store_true", help="Evaluation in ReCodEx.")
-    parser.add_argument("--rnn_cell", default="LSTM", type=str, help="RNN cell type.")
-    parser.add_argument("--rnn_cell_dim", default=64, type=int, help="RNN cell dimension.")
+    parser.add_argument("--rnn_cell", default="GRU", type=str, help="RNN cell type.")
+    parser.add_argument("--rnn_cell_dim", default=20, type=int, help="RNN cell dimension.")
     parser.add_argument("--threads", default=1, type=int, help="Maximum number of threads to use.")
     parser.add_argument("--we_dim", default=128, type=int, help="Word embedding dimension.")
     args = parser.parse_args()
@@ -125,10 +126,11 @@ if __name__ == "__main__":
     network = Network(args,
                       num_words=len(morpho.train.data[morpho.train.FORMS].words),
                       num_tags=len(morpho.train.data[morpho.train.TAGS].words))
+
     for epoch in range(args.epochs):
         network.train_epoch(morpho.train, args)
-        metrics = network.evaluate(morpho.dev, "dev", args)
-        print(metrics)
+        network.evaluate(morpho.dev, "dev", args)
+        # print(metrics)
 
     metrics = network.evaluate(morpho.test, "test", args)
     with open("tagger_we.out", "w") as out_file:
