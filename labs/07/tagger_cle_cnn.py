@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+#bfc95faa-444e-11e9-b0fd-00505601122b
+#3da961ed-4364-11e9-b0fd-00505601122b
 import numpy as np
 import tensorflow as tf
 
@@ -9,12 +11,15 @@ class Network:
         # TODO(we): Implement a one-layer RNN network. The input
         # `word_ids` consists of a batch of sentences, each
         # a sequence of word indices. Padded words have index 0.
+        word_ids = tf.keras.layers.Input(shape=(None,), dtype=tf.int32)
 
         # TODO(cle_rnn): Apart from `word_ids`, RNN CLEs utilize two more
         # inputs, `charseqs` containing unique words in batches (each word
         # being a sequence of character indices, padding characters again
         # have index 0) and `charseq_ids` with the same shape as `word_ids`,
         # but with indices pointing into `charseqs`.
+        charseq_ids = tf.keras.layers.Input(shape=(None,), dtype=tf.int32)
+        charseqs = tf.keras.layers.Input(shape=(None,), dtype=tf.int32)
 
         # TODO: Embed the characters in `charseqs` using embeddings of size
         # `args.cle_dim`, NOT masking zero indices. Then, for each `width`
@@ -24,6 +29,18 @@ class Network:
         # - process the Conv1D result using global max pooling.
         # Finally, concatenate the generated results and pass then through
         # a fully connected layer with `args.we_dim` outputs and ReLU activation.
+        embedded_chars = tf.keras.layers.Embedding(input_dim=num_chars, output_dim=args.cle_dim, mask_zero=False)(
+            charseqs)
+
+        results = []
+        for width in range(2, args.cnn_max_width):
+            res = tf.keras.layers.Conv1D(args.cnn_filters, width, 1, 'valid', activation="relu")(embedded_chars)
+            mp = tf.keras.layers.GlobalMaxPool1D()(res)
+            results.append(mp)
+        resses = tf.stack(results)
+
+        d1 = tf.keras.layers.Dense(args.we_dim, "relu")(resses)
+        # print(d1.get_shape())
 
         # TODO(cle_rnn): Then, copy the computed embeddings of unique words to the correct sentence
         # positions. To that end, use `tf.gather` operation, which is given a matrix
@@ -31,18 +48,26 @@ class Network:
         # of the matrix. You need to wrap the `tf.gather` in `tf.keras.layers.Lambda`
         # because of a bug [fixed 6 days ago in the master], so the call shoud look like
         # `tf.keras.layers.Lambda(lambda args: tf.gather(*args))(...)`
+        replace = tf.keras.layers.Lambda(lambda args: tf.gather(*args))([d1, charseq_ids])
+        print(replace.get_shape())
 
         # TODO(we): Embed input words with dimensionality `args.we_dim`, using
         # `mask_zero=True`.
+        embedded_words = tf.keras.layers.Embedding(input_dim=num_words, output_dim=args.we_dim, mask_zero=True)(
+            word_ids)
 
         # TODO(cle_rnn): Concatenate the WE and CLE embeddings (in this order).
+        concat = tf.keras.layers.Concatenate()([embedded_words, replace])
 
         # TODO: Create specified `args.rnn_cell` RNN cell (LSTM, GRU) with
         # dimension `args.rnn_cell_dim` and apply it in a bidirectional way on
         # the embedded words, concatenating opposite directions.
+        hidden = tf.keras.layers.Bidirectional(getattr(tf.keras.layers, args.rnn_cell)(args.rnn_cell_dim,
+                                                            return_sequences=True), merge_mode="concat")(concat)
 
         # TODO(we): Add a softmax classification layer into `num_tags` classes, storing
         # the outputs in `predictions`.
+        predictions = tf.keras.layers.Dense(num_tags, activation="softmax")(hidden)
 
         self.model = tf.keras.Model(inputs=[word_ids, charseq_ids, charseqs], outputs=predictions)
 
@@ -72,6 +97,7 @@ class Network:
                 if name == "loss": metric(loss)
                 else: # TODO(cle_rnn): Update the `metric` using gold `tags` and generated `probabilities`,
                       # passing the tag mask as third argument.
+                    pass
                 tf.summary.scalar("train/{}".format(name), metric.result())
 
     def train_epoch(self, dataset, args):
@@ -91,12 +117,14 @@ class Network:
             if name == "loss": metric(loss)
             else: # TODO(cle_rnn): Update the `metric` using gold `tags` and generated `probabilities`,
                   # passing the tag mask as third argument.
+                pass
 
     def evaluate(self, dataset, dataset_name, args):
         for metric in self._metrics.values():
             metric.reset_states()
         for batch in dataset.batches(args.batch_size):
             # TODO(cle_rnn): Evaluate the given match, using the same inputs as in training.
+            pass
 
         metrics = {name: metric.result() for name, metric in self._metrics.items()}
         with self._writer.as_default():

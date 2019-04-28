@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+#bfc95faa-444e-11e9-b0fd-00505601122b
+#3da961ed-4364-11e9-b0fd-00505601122b
 import numpy as np
 import tensorflow as tf
 
@@ -64,12 +66,13 @@ class Network:
 
         self._writer = tf.summary.create_file_writer(args.logdir, flush_millis=10 * 1000)
 
-    @tf.function(input_signature=[[tf.TensorSpec(shape=[None, None], dtype=tf.int32)] * 3,
-                                  tf.TensorSpec(shape=[None, None], dtype=tf.int32)])
+    # @tf.function(input_signature=[[tf.TensorSpec(shape=[None, None], dtype=tf.int32)] * 3,
+    #                               tf.TensorSpec(shape=[None, None], dtype=tf.int32)])
     def train_batch(self, inputs, tags):
         # TODO: Generate a mask from `tags` containing ones in positions where tags are nonzero (using `tf.not_equal`).
-        mask = tf.not_equal(tags,0)
         tags_ex = np.expand_dims(tags,axis=2)
+        mask = tf.not_equal(tags_ex,0)
+
         with tf.GradientTape() as tape:
             probabilities = self.model(inputs, training=True)
             # TODO: Compute `loss` using `self._loss`, passing the generated
@@ -85,22 +88,24 @@ class Network:
                 if name == "loss": metric(loss)
                 else: # TODO: Update the `metric` using gold `tags` and generated `probabilities`,
                       # passing the tag mask as third argument.
-                    metric(tags_ex, probabilities)
+                    metric(tags_ex, probabilities, mask)
                 tf.summary.scalar("train/{}".format(name), metric.result())
 
     def train_epoch(self, dataset, args):
         for batch in dataset.batches(args.batch_size):
-            self.train_batch([batch[dataset.FORMS].word_ids, batch[dataset.FORMS].charseq_ids, batch[dataset.FORMS].charseqs],
-                             batch[dataset.TAGS].word_ids)
+            self.train_batch([batch[dataset.FORMS].word_ids,
+                              batch[dataset.FORMS].charseq_ids,
+                              batch[dataset.FORMS].charseqs],
+                              batch[dataset.TAGS].word_ids)
             print("Batch trained")
 
-    @tf.function(input_signature=[[tf.TensorSpec(shape=[None, None], dtype=tf.int32)] * 3,
-                                  tf.TensorSpec(shape=[None, None], dtype=tf.int32)])
+    # @tf.function(input_signature=[[tf.TensorSpec(shape=[None, None], dtype=tf.int32)] * 3,
+    #                               tf.TensorSpec(shape=[None, None], dtype=tf.int32)])
     def evaluate_batch(self, inputs, tags):
         # TODO: Again generate a mask from `tags` containing ones in positions
         # where tags are nonzero (using `tf.not_equal`).
-        mask = tf.not_equal(tags, 0)
         tags_ex = np.expand_dims(tags, axis=2)
+        mask = tf.not_equal(tags_ex, 0)
         probabilities = self.model(inputs, training=False)
         # TODO: Compute `loss` using `self._loss`, passing the generated
         # tag mask as third parameter.
@@ -109,7 +114,7 @@ class Network:
             if name == "loss": metric(loss)
             else: # TODO: Update the `metric` using gold `tags` and generated `probabilities`,
                   # passing the tag mask as third argument.
-                metric(tags_ex, probabilities)
+                metric(tags_ex, probabilities,mask)
 
     def evaluate(self, dataset, dataset_name, args):
         for metric in self._metrics.values():
@@ -135,15 +140,15 @@ if __name__ == "__main__":
 
     # Parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size", default=10, type=int, help="Batch size.")
+    parser.add_argument("--batch_size", default=1, type=int, help="Batch size.")
     parser.add_argument("--cle_dim", default=32, type=int, help="CLE embedding dimension.")
     parser.add_argument("--epochs", default=1, type=int, help="Number of epochs.")
     parser.add_argument("--max_sentences", default=5000, type=int, help="Maximum number of sentences to load.")
     parser.add_argument("--recodex", default=False, action="store_true", help="Evaluation in ReCodEx.")
     parser.add_argument("--rnn_cell", default="LSTM", type=str, help="RNN cell type.")
-    parser.add_argument("--rnn_cell_dim", default=64, type=int, help="RNN cell dimension.")
+    parser.add_argument("--rnn_cell_dim", default=20, type=int, help="RNN cell dimension.")
     parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
-    parser.add_argument("--we_dim", default=64, type=int, help="Word embedding dimension.")
+    parser.add_argument("--we_dim", default=32, type=int, help="Word embedding dimension.")
     args = parser.parse_args()
 
     # Fix random seeds and number of threads
