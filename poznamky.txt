@@ -262,8 +262,65 @@ Tagger competition
 - can use sequence model
 - extension of image classification -> 3D convolution can be used 
 
-	
+Prednaska 9
+-----------
+seq2seq
+- encoder (jedno rnn) 
+	- zpracuje vstup
+	- na vystupu reprezentace cely sekvence
+- druhy rnn 
+	- generuje vystupni sekvenci 
+	- generuju dokud EOF 
+	- potrebuje videt co vygeneroval na vystupu a na zaklade toho generovat dal 
+	- ma na vstupu minulej vystup a co cely vygeneroval 
+	- prvni bunka dostava START element 
+	- encoded reprezentace se da narvat uplne vsude
+- ze zacatku to generuje picoviny -> teacher forcing 
+	- kdyz vygeneruje blbost -> da se ji spravnej vstup 
+	- trenuje se se spravnejma labelama 
+- tech RNN bunek se tam proste cpe co to da... 
+- fixne velkej vektor na encoded -> blby 
+-> ATTENTION
+- v kazdym kroku ma decoder jeste vstup kam se chce koukat 
+- v encoderu -> mam vystup jeste pro kazdy slovo 
+- musi se natrenovat kam chce ten decoder cumet 
+- muzu se naucit distribuci toho jak moc se chci nekam koukat 
 
+Cviceni 9
+---------
+from tensorflow.python import keras 
+- bude to doplnovat, ale je to trochu jinej keras, takze to nemusi fungovat
+
+seq2seq 
+- lemmatizer
+- encoder -> embed each character -> RNN (bidir) -> sum results -> pass to decoder 
+- decoder -> input BOW -> every next node gets the previous output on input -> at last character -> output EOW
+- how many RNNs? (dynamic number of nodes depending on the decoded output) 
+- implement init block -> initialize -> produce first input and first state
+- implement step block -> gets inputs and states -> produce output and generate next input and the next state 
+- stack the step block as many times as needed 
+- both blocks needs information if the sequence ended or not 
+- je na to nejakej package -> ten se na to pouzivat nebude 
+- same data as in the tagger task 
+- store all the layer that will be used
+- only cells in decoder (we need more of them)
+- we will be processing logits 
+- _append_eow appends ends of words
+- source states (sipka mezi encoderem a decoderem) 
+- po tom co se udela gather -> pouzije se neco co jde pres inputy a kopiruje to jenom non-padding inputy
+ 	-> dostaneme list individualnich slov co nejsou padding slova 
+- output_layer jsou logits 
+- batch_size je first dimension of _source_states shapu
+- output type je float (logits) 
+- embed everything...
+- predict batch in evaluation -> run inference 
+	- we don't have outputs
+- prediction decoder -> doesn't return logits
+	- argmax at the output -> feed it as input  
+
+Competition
+- same data
+- 
 
 
 

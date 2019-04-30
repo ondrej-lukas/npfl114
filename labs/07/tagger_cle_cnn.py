@@ -37,7 +37,7 @@ class Network:
             res = tf.keras.layers.Conv1D(args.cnn_filters, width, 1, "valid", activation="relu")(embedded_chars)
             mp = tf.keras.layers.GlobalMaxPool1D()(res)
             results.append(mp)
-        resses = tf.concat(results,axis=1)
+        resses = tf.concat(results,axis=-1)
 
         d1 = tf.keras.layers.Dense(args.we_dim, "relu")(resses)
         # print(d1.get_shape())
