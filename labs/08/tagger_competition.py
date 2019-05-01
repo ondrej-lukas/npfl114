@@ -29,10 +29,9 @@ class Network:
 
         self.model = tf.keras.Model(inputs=[word_ids, charseq_ids, charseqs], outputs=predictions)
 
-        opt = tf.optimizers.Adam()
-        loss = tf.losses.SparseCategoricalCrossentropy()
-        metrics = {'loss': tf.metrics.Mean(), 'accuracy': tf.metrics.SparseCategoricalAccuracy()}
-        self.model.compile(opt,loss,metrics)
+        self._opt = tf.optimizers.Adam()
+        self._loss = tf.losses.SparseCategoricalCrossentropy()
+        self._metrics = {'loss': tf.metrics.Mean(), 'accuracy': tf.metrics.SparseCategoricalAccuracy()}
         self._writer = tf.summary.create_file_writer(args.logdir, flush_millis=10 * 1000)
 
     def train_batch(self, inputs, tags):
@@ -55,12 +54,49 @@ class Network:
                     metric(tags_ex, probabilities, mask)
                 # tf.summary.scalar("train/{}".format(name), metric.result())
 
-    def train(self, pdt, args):
-        self.model.fit(x=[pdt.data[pdt.FORMS].word_ids,
-                        pdt.data[pdt.FORMS].charseq_ids,
-                        pdt.data[pdt.FORMS].charseqs],
-                       y=np.expand_dims(pdt.data[pdt.TAGS].word_ids, axis=2), batch_size=args.batch_size, epochs=args.epochs)
+    def fix_tags(self, tags):
+        max_length = max(map(len, tags))
+        arr = None
+        for t in tags:
+            t = np.append(t, np.zeros((max_length - len(t),1)))
+            if arr is None:
+                arr = t
+            else:
+                arr = np.vstack((arr,t))
+        return arr.astype('int32')
 
+    def train_batch(self, inputs, tags):
+        # length = max(map(len, tags))
+        # tags_np = np.array([xi + [None] * (length - len(xi)) for xi in tags])
+        # tags_ex = np.expand_dims(tags_np, axis=2)
+        # mask = None
+        new_tags = self.fix_tags(tags)
+        tags_ex = np.expand_dims(new_tags, axis=2)
+        mask = tf.not_equal(tags_ex, 0)
+
+        with tf.GradientTape() as tape:
+            probabilities = self.model(inputs, training=True)
+            loss = self._loss(tags_ex, probabilities, mask)
+        gradients = tape.gradient(loss, self.model.variables)
+        self._optimizer.apply_gradients(zip(gradients, self.model.variables))
+
+        tf.summary.experimental.set_step(self._optimizer.iterations)
+        with self._writer.as_default():
+            for name, metric in self._metrics.items():
+                metric.reset_states()
+                if name == "loss":
+                    metric(loss)
+                    metric(tags_ex, probabilities, mask)
+                # tf.summary.scalar("train/{}".format(name), metric.result())
+
+
+    def train(self, pdt, args):
+        for epoch in range(0,args.epochs):
+            for batch in pdt.batches(args.batch_size):
+                self.train_batch([batch[pdt.FORMS].word_ids,
+                        batch[pdt.FORMS].charseq_ids,
+                        batch[pdt.FORMS].charseqs],
+                        pdt.data[pdt.TAGS].word_ids)
 
     def predict(self, dataset, args):
         # TODO: Predict method should return a list, each element corresponding
@@ -99,7 +135,7 @@ if __name__ == "__main__":
     ))
 
     # Load the data. Using analyses is only optional.
-    morpho = MorphoDataset("czech_pdt")
+    morpho = MorphoDataset("czech_pdt", max_sentences=5000)
     analyses = MorphoAnalyzer("czech_pdt_analyses")
 
     # Create the network and train
