@@ -29,30 +29,33 @@ class Network:
 
         self.model = tf.keras.Model(inputs=[word_ids, charseq_ids, charseqs], outputs=predictions)
 
-        self._opt = tf.optimizers.Adam()
+        self._optimizer = tf.optimizers.Adam()
         self._loss = tf.losses.SparseCategoricalCrossentropy()
         self._metrics = {'loss': tf.metrics.Mean(), 'accuracy': tf.metrics.SparseCategoricalAccuracy()}
         self._writer = tf.summary.create_file_writer(args.logdir, flush_millis=10 * 1000)
 
-    def train_batch(self, inputs, tags):
-        tags_ex = np.expand_dims(tags, axis=2)
+    def evaluate(self, dataset, args):
+        for metric in self._metrics.values():
+            metric.reset_states()
+        for batch in dataset.batches(args.batch_size):
+            self.evaluate_batch(
+                [batch[dataset.FORMS].word_ids, batch[dataset.FORMS].charseq_ids, batch[dataset.FORMS].charseqs],
+                batch[dataset.TAGS].word_ids)
+
+        metrics = {name: metric.result() for name, metric in self._metrics.items()}
+        return metrics
+
+    def evaluate_batch(self, inputs, tags):
+        new_tags = self.fix_tags(tags)
+        tags_ex = np.expand_dims(new_tags, axis=2)
         mask = tf.not_equal(tags_ex, 0)
-
-        with tf.GradientTape() as tape:
-            probabilities = self.model(inputs, training=True)
-            loss = self._loss(tags_ex, probabilities, mask)
-        gradients = tape.gradient(loss, self.model.variables)
-        self._optimizer.apply_gradients(zip(gradients, self.model.variables))
-
-        tf.summary.experimental.set_step(self._optimizer.iterations)
-        with self._writer.as_default():
-            for name, metric in self._metrics.items():
-                metric.reset_states()
-                if name == "loss":
-                    metric(loss)
-                else:
-                    metric(tags_ex, probabilities, mask)
-                # tf.summary.scalar("train/{}".format(name), metric.result())
+        probabilities = self.model(inputs, training=False)
+        loss = self._loss(tags_ex, probabilities, mask)
+        for name, metric in self._metrics.items():
+            if name == "loss":
+                metric(loss)
+            else:
+                metric(tags_ex, probabilities, mask)
 
     def fix_tags(self, tags):
         max_length = max(map(len, tags))
@@ -66,10 +69,6 @@ class Network:
         return arr.astype('int32')
 
     def train_batch(self, inputs, tags):
-        # length = max(map(len, tags))
-        # tags_np = np.array([xi + [None] * (length - len(xi)) for xi in tags])
-        # tags_ex = np.expand_dims(tags_np, axis=2)
-        # mask = None
         new_tags = self.fix_tags(tags)
         tags_ex = np.expand_dims(new_tags, axis=2)
         mask = tf.not_equal(tags_ex, 0)
@@ -86,24 +85,32 @@ class Network:
                 metric.reset_states()
                 if name == "loss":
                     metric(loss)
+                else:
                     metric(tags_ex, probabilities, mask)
-                # tf.summary.scalar("train/{}".format(name), metric.result())
 
 
-    def train(self, pdt, args):
+    def train(self, train_data, dev_data, args):
         for epoch in range(0,args.epochs):
-            for batch in pdt.batches(args.batch_size):
-                self.train_batch([batch[pdt.FORMS].word_ids,
-                        batch[pdt.FORMS].charseq_ids,
-                        batch[pdt.FORMS].charseqs],
-                        pdt.data[pdt.TAGS].word_ids)
+            # batch_count = 0
+            for batch in train_data.batches(args.batch_size):
+                self.train_batch([batch[train_data.FORMS].word_ids,
+                                  batch[train_data.FORMS].charseq_ids,
+                                  batch[train_data.FORMS].charseqs],
+                                 batch[train_data.TAGS].word_ids)
+                # batch_count += 1
+            # Evaluate on dev data
+            metrics = network.evaluate(dev_data, args)
+            print("Dev accuracy: ", metrics['accuracy'])
 
     def predict(self, dataset, args):
         # TODO: Predict method should return a list, each element corresponding
         # to one sentence. Each sentence should be a list/np.ndarray
         # containing _indices_ of chosen tags (not the logits/probabilities).
-        pass
-
+        predictions = self.model([self.fix_tags(dataset.data[dataset.FORMS].word_ids),
+                                  self.fix_tags(dataset.data[dataset.FORMS].charseq_ids),
+                                  self.fix_tags(dataset.data[dataset.FORMS].charseqs)],training=False)
+        edited = tf.argmax(predictions, axis=2)
+        return edited
 
 if __name__ == "__main__":
     import argparse
@@ -113,9 +120,9 @@ if __name__ == "__main__":
 
     # Parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size", default=50, type=int, help="Batch size.")
-    parser.add_argument("--epochs", default=10, type=int, help="Number of epochs.")
-    parser.add_argument("--threads", default=1, type=int, help="Maximum number of threads to use.")
+    parser.add_argument("--batch_size", default=10, type=int, help="Batch size.")
+    parser.add_argument("--epochs", default=5, type=int, help="Number of epochs.")
+    parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
     parser.add_argument("--cle_dim", default=16, type=int, help="Character lvl embedding dimension.")
     parser.add_argument("--we_dim", default=64, type=int, help="Word lvl embedding dimension.")
     parser.add_argument("--rnn_dim", default=32, type=int, help="RNN dimension.")
@@ -135,14 +142,15 @@ if __name__ == "__main__":
     ))
 
     # Load the data. Using analyses is only optional.
-    morpho = MorphoDataset("czech_pdt", max_sentences=5000)
+    morpho = MorphoDataset("czech_pdt", max_sentences=500)
     analyses = MorphoAnalyzer("czech_pdt_analyses")
 
     # Create the network and train
     network = Network(args, num_words=len(morpho.train.data[morpho.train.FORMS].words),
                             num_tags=len(morpho.train.data[morpho.train.TAGS].words),
                             num_chars=len(morpho.train.data[morpho.train.FORMS].alphabet))
-    network.train(morpho.train, args)
+    network.train(morpho.train, morpho.dev, args)
+    # p = network.predict(morpho.test, args)
 
     # Generate test set annotations, but in args.logdir to allow parallel execution.
     out_path = "tagger_competition_test.txt"
