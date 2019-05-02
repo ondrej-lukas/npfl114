@@ -12,20 +12,32 @@ class Network:
     def __init__(self, modelnet, args):
         # TODO: Define a suitable model, and either `.compile` it, or prepare
         # optimizer and loss manually.
+        # inputs = tf.keras.layers.Input(shape=[args.modelnet, args.modelnet, args.modelnet,1])
+        # hidden = tf.keras.layers.Conv3D(filters=32,kernel_size=(5,5,5), strides=(1,1,1), padding="same" ,activation=None)(inputs)
+        # hidden = tf.keras.layers.BatchNormalization()(hidden)
+        # hidden = tf.keras.activations.relu(hidden)
+        # hidden = tf.keras.layers.MaxPool3D(pool_size=(2, 2, 2), strides=(1,1,1),padding="same")(hidden)
+        # hidden = tf.keras.layers.Conv3D(filters=32,kernel_size=(3,3,3), strides=(1,1,1), padding="same" ,activation=None)(hidden)
+        # hidden = tf.keras.layers.BatchNormalization()(hidden)
+        # hidden = tf.keras.activations.relu(hidden)
+        # hidden = tf.keras.layers.MaxPool3D(pool_size=(2, 2, 2), strides=(1,1,1),padding="same")(hidden)
+        # hidden = tf.keras.layers.Conv3D(filters=64,kernel_size=(3,3,3), strides=(1,1,1), padding="same" ,activation=None)(hidden)
+        # hidden = tf.keras.layers.BatchNormalization()(hidden)
+        # hidden = tf.keras.activations.relu(hidden)
+        # hidden = tf.keras.layers.Flatten()(hidden)
+        # outputs = tf.keras.layers.Dense(len(modelnet.LABELS), activation="softmax")(hidden)
+
+        # Architecture 2
         inputs = tf.keras.layers.Input(shape=[args.modelnet, args.modelnet, args.modelnet,1])
-        hidden = tf.keras.layers.Conv3D(filters=32,kernel_size=(5,5,5), strides=(1,1,1), padding="same" ,activation=None)(inputs)
-        hidden = tf.keras.layers.BatchNormalization()(hidden)
-        hidden = tf.keras.activations.relu(hidden)
-        hidden = tf.keras.layers.MaxPool3D(pool_size=(2, 2, 2), strides=(1,1,1),padding="same")(hidden)
-        hidden = tf.keras.layers.Conv3D(filters=32,kernel_size=(3,3,3), strides=(1,1,1), padding="same" ,activation=None)(inputs)
-        hidden = tf.keras.layers.BatchNormalization()(hidden)
-        hidden = tf.keras.activations.relu(hidden)
-        hidden = tf.keras.layers.MaxPool3D(pool_size=(2, 2, 2), strides=(1,1,1),padding="same")(hidden)
-        hidden = tf.keras.layers.Conv3D(filters=64,kernel_size=(3,3,3), strides=(1,1,1), padding="same" ,activation=None)(inputs)
-        hidden = tf.keras.layers.BatchNormalization()(hidden)
-        hidden = tf.keras.activations.relu(hidden)
+        hidden = tf.keras.layers.AveragePooling3D((2,2,2))(inputs)
+        hidden = tf.keras.layers.Conv3D(128, kernel_size=(3,3,3))(hidden)
+        hidden = tf.keras.layers.Conv3D(32, kernel_size=(3,3,3))(hidden)
+        hidden = tf.keras.layers.MaxPooling3D((2,2,2))(hidden)
         hidden = tf.keras.layers.Flatten()(hidden)
+        hidden = tf.keras.layers.ELU()(hidden)
         outputs = tf.keras.layers.Dense(len(modelnet.LABELS), activation="softmax")(hidden)
+
+
         self.model = tf.keras.Model(inputs=inputs, outputs=outputs)
         adam = tf.keras.optimizers.Adam()
         self.model.compile(
@@ -59,9 +71,9 @@ if __name__ == "__main__":
 
     # Parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size", default=100, type=int, help="Batch size.")
+    parser.add_argument("--batch_size", default=64, type=int, help="Batch size.")
     parser.add_argument("--modelnet", default=32, type=int, help="ModelNet dimension.")
-    parser.add_argument("--epochs", default=25, type=int, help="Number of epochs.")
+    parser.add_argument("--epochs", default=50, type=int, help="Number of epochs.")
     parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
     args = parser.parse_args()
 

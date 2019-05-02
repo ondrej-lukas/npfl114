@@ -320,7 +320,6 @@ seq2seq
 
 Competition
 - same data
-- 
 
 
 
