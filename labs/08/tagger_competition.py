@@ -24,7 +24,7 @@ class Network:
         concat = tf.keras.layers.Concatenate()([embedded_words, replace])
         hidden = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(args.rnn_dim, return_sequences=True),
                                                   merge_mode="concat")(concat)
-        hidden = tf.keras.layers.Dense(80,"relu")(hidden)
+        hidden = tf.keras.layers.Dense(256,"relu")(hidden)
         predictions = tf.keras.layers.Dense(num_tags, activation="softmax")(hidden)
 
         self.model = tf.keras.Model(inputs=[word_ids, charseq_ids, charseqs], outputs=predictions)
@@ -120,11 +120,11 @@ if __name__ == "__main__":
 
     # Parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size", default=10, type=int, help="Batch size.")
-    parser.add_argument("--epochs", default=5, type=int, help="Number of epochs.")
+    parser.add_argument("--batch_size", default=20, type=int, help="Batch size.")
+    parser.add_argument("--epochs", default=30, type=int, help="Number of epochs.")
     parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
-    parser.add_argument("--cle_dim", default=16, type=int, help="Character lvl embedding dimension.")
-    parser.add_argument("--we_dim", default=64, type=int, help="Word lvl embedding dimension.")
+    parser.add_argument("--cle_dim", default=32, type=int, help="Character lvl embedding dimension.")
+    parser.add_argument("--we_dim", default=32, type=int, help="Word lvl embedding dimension.")
     parser.add_argument("--rnn_dim", default=32, type=int, help="RNN dimension.")
     args = parser.parse_args()
 
@@ -142,7 +142,7 @@ if __name__ == "__main__":
     ))
 
     # Load the data. Using analyses is only optional.
-    morpho = MorphoDataset("czech_pdt", max_sentences=500)
+    morpho = MorphoDataset("czech_pdt", max_sentences=50000)
     analyses = MorphoAnalyzer("czech_pdt_analyses")
 
     # Create the network and train
