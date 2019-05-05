@@ -9,7 +9,6 @@ from morpho_dataset import MorphoDataset
 
 class Network:
     def __init__(self, args, num_words, num_tags, num_chars):
-        # TODO: Define a suitable model.
         word_ids = tf.keras.layers.Input(shape=(None,), dtype=tf.int32)
         charseq_ids = tf.keras.layers.Input(shape=(None,), dtype=tf.int32)
         charseqs = tf.keras.layers.Input(shape=(None,), dtype=tf.int32)
@@ -22,7 +21,7 @@ class Network:
         embedded_words = tf.keras.layers.Embedding(input_dim=num_words, output_dim=args.we_dim, mask_zero=True)(
             word_ids)
         concat = tf.keras.layers.Concatenate()([embedded_words, replace])
-        hidden = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(args.rnn_dim, return_sequences=True),
+        hidden = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(args.rnn_dim, return_sequences=True),
                                                   merge_mode="concat")(concat)
         hidden = tf.keras.layers.Dense(256,"relu")(hidden)
         predictions = tf.keras.layers.Dense(num_tags, activation="softmax")(hidden)
@@ -68,9 +67,28 @@ class Network:
                 arr = np.vstack((arr,t))
         return arr.astype('int32')
 
+    def fix_data(self, dataset):
+        tag_lens = [max(map(len, dataset.dev.data[2].word_ids)),max(map(len, dataset.train.data[2].word_ids)),
+                                       max(map(len, dataset.test.data[2].word_ids))]
+        max_len = max(tag_lens)
+        tag_dict = {}
+        for tag in dataset.dev.data[2].word_ids:
+            tag_dict[tuple(tag)] = np.append(tag, np.zeros((max_len - len(tag),1)))
+        for tag in dataset.train.data[2].word_ids:
+            tag_dict[tuple(tag)] = np.append(tag, np.zeros((max_len - len(tag), 1)))
+        for tag in dataset.test.data[2].word_ids:
+            tag_dict[tuple(tag)] = np.append(tag, np.zeros((max_len - len(tag),1)))
+        self.tag_dict = tag_dict
+
+    def gen_tags(self,tags):
+        longer_tags = [self.tag_dict[tuple(tag)] for tag in tags]
+        stacked = np.vstack(longer_tags)
+        return stacked
+
     def train_batch(self, inputs, tags):
-        new_tags = self.fix_tags(tags)
-        tags_ex = np.expand_dims(new_tags, axis=2)
+        # new_tags = self.fix_tags(tags)
+        # new_tags = self.gen_tags(tags)
+        tags_ex = np.expand_dims(tags, axis=2)
         mask = tf.not_equal(tags_ex, 0)
 
         with tf.GradientTape() as tape:
@@ -149,8 +167,9 @@ if __name__ == "__main__":
     network = Network(args, num_words=len(morpho.train.data[morpho.train.FORMS].words),
                             num_tags=len(morpho.train.data[morpho.train.TAGS].words),
                             num_chars=len(morpho.train.data[morpho.train.FORMS].alphabet))
-    network.train(morpho.train, morpho.dev, args)
-    # p = network.predict(morpho.test, args)
+    # network.fix_data(morpho)
+    # network.train(morpho.train, morpho.dev, args)
+    p = network.predict(morpho.test, args)
 
     # Generate test set annotations, but in args.logdir to allow parallel execution.
     out_path = "tagger_competition_test.txt"
