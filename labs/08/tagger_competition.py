@@ -15,8 +15,9 @@ class Network:
 
         embedded_chars = tf.keras.layers.Embedding(input_dim=num_chars, output_dim=args.cle_dim, mask_zero=True)(
             charseqs)
-        gru_chars = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(args.cle_dim, return_sequences=False),
+        gru_chars = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(args.cle_dim, return_sequences=False),
                                                   merge_mode="concat")(embedded_chars)
+
         replace = tf.keras.layers.Lambda(lambda args: tf.gather(*args))([gru_chars, charseq_ids])
         embedded_words = tf.keras.layers.Embedding(input_dim=num_words, output_dim=args.we_dim, mask_zero=True)(
             word_ids)
@@ -34,9 +35,9 @@ class Network:
 
 
         concat = tf.keras.layers.Concatenate()([embedded_words, replace,formatted_charseqs_word_embeddings])
-        hidden = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(args.rnn_dim, return_sequences=True),
-                                                  merge_mode="concat")(concat)
-        hidden = tf.keras.layers.Dense(256,"relu")(hidden)
+        hidden = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(args.rnn_dim, return_sequences=True),merge_mode="sum")(concat)
+        hidden = tf.keras.layers.Dense(500,"tanh")(hidden)
+
         predictions = tf.keras.layers.Dense(num_tags, activation="softmax")(hidden)
 
         self.model = tf.keras.Model(inputs=[word_ids, charseq_ids, charseqs], outputs=predictions)
