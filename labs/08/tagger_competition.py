@@ -20,7 +20,20 @@ class Network:
         replace = tf.keras.layers.Lambda(lambda args: tf.gather(*args))([gru_chars, charseq_ids])
         embedded_words = tf.keras.layers.Embedding(input_dim=num_words, output_dim=args.we_dim, mask_zero=True)(
             word_ids)
-        concat = tf.keras.layers.Concatenate()([embedded_words, replace])
+
+        embedded_charseqs = tf.keras.layers.Embedding(num_chars, args.cle_dim)(charseqs)
+        conv_layer = []
+        for width in range(2, args.cnn_max_width + 1):
+            conv1d = tf.keras.layers.Conv1D(args.cnn_filters, width, 1, 'valid', activation='relu')(
+                embedded_charseqs)
+            conv_layer.append(tf.keras.layers.GlobalMaxPool1D()(conv1d))
+        concat = tf.keras.layers.Concatenate()(conv_layer)
+        charseqs_word_embeddings = tf.keras.layers.Dense(args.we_dim, activation='relu')(concat)
+        formatted_charseqs_word_embeddings = tf.keras.layers.Lambda(lambda largs: tf.gather(*largs))([charseqs_word_embeddings, charseq_ids])
+
+
+
+        concat = tf.keras.layers.Concatenate()([embedded_words, replace,formatted_charseqs_word_embeddings])
         hidden = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(args.rnn_dim, return_sequences=True),
                                                   merge_mode="concat")(concat)
         hidden = tf.keras.layers.Dense(256,"relu")(hidden)
@@ -138,12 +151,14 @@ if __name__ == "__main__":
 
     # Parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size", default=20, type=int, help="Batch size.")
-    parser.add_argument("--epochs", default=30, type=int, help="Number of epochs.")
+    parser.add_argument("--batch_size", default=50, type=int, help="Batch size.")
+    parser.add_argument("--epochs", default=15, type=int, help="Number of epochs.")
     parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
     parser.add_argument("--cle_dim", default=32, type=int, help="Character lvl embedding dimension.")
-    parser.add_argument("--we_dim", default=32, type=int, help="Word lvl embedding dimension.")
-    parser.add_argument("--rnn_dim", default=32, type=int, help="RNN dimension.")
+    parser.add_argument("--we_dim", default=48, type=int, help="Word lvl embedding dimension.")
+    parser.add_argument("--rnn_dim", default=64, type=int, help="RNN dimension.")
+    parser.add_argument("--cnn_filters", default=24, type=int, help="CNN embedding filters per length.")
+    parser.add_argument("--cnn_max_width", default=4, type=int, help="Maximum CNN filter width.")
     args = parser.parse_args()
 
     # Fix random seeds and number of threads
@@ -160,7 +175,7 @@ if __name__ == "__main__":
     ))
 
     # Load the data. Using analyses is only optional.
-    morpho = MorphoDataset("czech_pdt", max_sentences=50000)
+    morpho = MorphoDataset("czech_pdt", max_sentences=5000)
     analyses = MorphoAnalyzer("czech_pdt_analyses")
 
     # Create the network and train
@@ -168,8 +183,8 @@ if __name__ == "__main__":
                             num_tags=len(morpho.train.data[morpho.train.TAGS].words),
                             num_chars=len(morpho.train.data[morpho.train.FORMS].alphabet))
     # network.fix_data(morpho)
-    # network.train(morpho.train, morpho.dev, args)
-    p = network.predict(morpho.test, args)
+    network.train(morpho.train, morpho.dev, args)
+    #p = network.predict(morpho.test, args)
 
     # Generate test set annotations, but in args.logdir to allow parallel execution.
     out_path = "tagger_competition_test.txt"
