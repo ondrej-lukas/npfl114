@@ -15,15 +15,16 @@ class Network:
 
         embedded_chars = tf.keras.layers.Embedding(input_dim=num_chars, output_dim=args.cle_dim, mask_zero=True)(
             charseqs)
-        gru_chars = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(args.cle_dim, return_sequences=False),
+        gru_chars = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(args.cle_dim, return_sequences=False),
                                                   merge_mode="concat")(embedded_chars)
+
         replace = tf.keras.layers.Lambda(lambda args: tf.gather(*args))([gru_chars, charseq_ids])
         embedded_words = tf.keras.layers.Embedding(input_dim=num_words, output_dim=args.we_dim, mask_zero=True)(
             word_ids)
         concat = tf.keras.layers.Concatenate()([embedded_words, replace])
         hidden = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(args.rnn_dim, return_sequences=True),
-                                                  merge_mode="concat")(concat)
-        hidden = tf.keras.layers.Dense(80,"relu")(hidden)
+                                                  merge_mode="sum")(concat)
+        hidden = tf.keras.layers.Dense(500,"tanh")(hidden)
         predictions = tf.keras.layers.Dense(num_tags, activation="softmax")(hidden)
 
         self.model = tf.keras.Model(inputs=[word_ids, charseq_ids, charseqs], outputs=predictions)
@@ -141,7 +142,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", default=50, type=int, help="Batch size.")
     parser.add_argument("--epochs", default=50, type=int, help="Number of epochs.")
     parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
-    parser.add_argument("--cle_dim", default=32, type=int, help="Character lvl embedding dimension.")
+    parser.add_argument("--cle_dim", default=64, type=int, help="Character lvl embedding dimension.")
     parser.add_argument("--we_dim", default=64, type=int, help="Word lvl embedding dimension.")
     parser.add_argument("--rnn_dim", default=128, type=int, help="RNN dimension.")
     args = parser.parse_args()
@@ -167,8 +168,8 @@ if __name__ == "__main__":
     network = Network(args, num_words=len(morpho.train.data[morpho.train.FORMS].words),
                             num_tags=len(morpho.train.data[morpho.train.TAGS].words),
                             num_chars=len(morpho.train.data[morpho.train.FORMS].alphabet))
-    # network.fix_data(morpho)
-    # network.train(morpho.train, morpho.dev, args)
+    network.fix_data(morpho)
+    network.train(morpho.train, morpho.dev, args)
     p = network.predict(morpho.test, args)
 
     # Generate test set annotations, but in args.logdir to allow parallel execution.
