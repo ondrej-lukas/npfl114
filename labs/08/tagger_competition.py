@@ -138,14 +138,12 @@ class Network:
         # TODO: Predict method should return a list, each element corresponding
         # to one sentence. Each sentence should be a list/np.ndarray
         # containing _indices_ of chosen tags (not the logits/probabilities).
-        ret = []
-        for x in dataset.data:
-            predictions = self.model([self.fix_tags(x[dataset.FORMS].word_ids),
-                                      self.fix_tags(x[dataset.FORMS].charseq_ids),
-                                      self.fix_tags(x[dataset.FORMS].charseqs)],training=False)
-            edited = tf.argmax(predictions, axis=2)
-            ret.append([edited])
-        return ret
+        predictions = self.model([self.fix_tags(dataset.data[dataset.FORMS].word_ids),
+                                  self.fix_tags(dataset.data[dataset.FORMS].charseq_ids),
+                                  self.fix_tags(dataset.data[dataset.FORMS].charseqs)],training=False)
+        edited = tf.argmax(predictions, axis=2)
+        return edited
+
 
 if __name__ == "__main__":
     import argparse
@@ -179,7 +177,8 @@ if __name__ == "__main__":
     ))
 
     # Load the data. Using analyses is only optional.
-    morpho = MorphoDataset("czech_pdt", max_sentences=70)
+
+    morpho = MorphoDataset("czech_pdt", max_sentences=5000)
     analyses = MorphoAnalyzer("czech_pdt_analyses")
 
     # Create the network and train
