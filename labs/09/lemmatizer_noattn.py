@@ -12,17 +12,22 @@ class Network:
                 super().__init__()
 
                 # TODO: Define
-                # - source_embeddings as a masked embedding layer of source chars into args.cle_dim dimensions
-                # - source_rnn as a bidirectional GRU with args.rnn_dim units, returning only the last state, summing opposite directions
-
-                # - target_embedding as an unmasked embedding layer of target chars into args.cle_dim dimensions
-                # - target_rnn_cell as a GRUCell with args.rnn_dim units
-                # - target_output_layer as a Dense layer into `num_target_chars`
-
+                # - source_embeddings as a masked embedding layer of source chars into args.cle_dim dimensions - DONE
+                # - source_rnn as a bidirectional GRU with args.rnn_dim units, returning only the last state, summing opposite directions - DONE
+                # - target_embedding as an unmasked embedding layer of target chars into args.cle_dim dimensions - DONE
+                # - target_rnn_cell as a GRUCell with args.rnn_dim units - DONE
+                # - target_output_layer as a Dense layer into `num_target_chars` - DONE
+        
+                self.source_embeddings = tf.keras.layers.Embedding(input_dim=num_source_chars, output_dim=args.cle_dim, mask_zero=True)
+                self.source_rnn = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(args.rnn_dim, return_sequences=False), merge_mode="sum")
+                self.target_rnn_cell = tf.keras.layers.GRUCell(args.rnn_dim units)
+                self.target_output_layer = tf.keras.layers.Dense(num_target_chars, activation="softmax")(hidden)
+                self.target_embedding = tf.keras.layers.Embedding(input_dim=num_target_chars, output_dim=args.cle_dim, mask_zero=False)
         self._model = Model()
 
         self._optimizer = tf.optimizers.Adam()
         # TODO: Define self._loss as SparseCategoricalCrossentropy which processes _logits_ instead of probabilities
+        self._loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
         self._metrics_training = {"loss": tf.metrics.Mean(), "accuracy": tf.metrics.SparseCategoricalAccuracy()}
         self._metrics_evaluation = {"accuracy": tf.metrics.Mean()}
         self._writer = tf.summary.create_file_writer(args.logdir, flush_millis=10 * 1000)
@@ -36,11 +41,12 @@ class Network:
     @tf.function(input_signature=[tf.TensorSpec(shape=[None, None], dtype=tf.int32)] * 4, autograph=False)
     def train_batch(self, source_charseq_ids, source_charseqs, target_charseq_ids, target_charseqs):
         # TODO: Modify target_charseqs by appending EOW; only the version with appended EOW is used from now on.
-
+        target_charseqs = self._append_eow(target_charseqs)
         with tf.GradientTape() as tape:
             # TODO: Embed source charseqs
+            embedded = self._model.source_embeddings(source_charseqs)
             # TODO: Run self._model.source_rnn on the embedded sequences, returning outputs in `source_states`.
-
+            source_states = self._model.source_rnn(embedded)
             # Copy the source_states to corresponding batch places, and then flatten it
             source_mask = tf.not_equal(source_charseq_ids, 0)
             source_states = tf.boolean_mask(tf.gather(source_states, source_charseq_ids), source_mask)
@@ -90,7 +96,7 @@ class Network:
     def train_epoch(self, dataset, args):
         for batch in dataset.batches(args.batch_size):
             # TODO: Call train_batch, storing results in `predictions`.
-
+            predictions = self.train_batch(batch.)
             form, gold_lemma, system_lemma = "", "", ""
             for i in batch[dataset.FORMS].charseqs[1]:
                 if i: form += dataset.data[dataset.FORMS].alphabet[i]
