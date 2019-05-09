@@ -37,7 +37,7 @@ class Network:
         sequences_rev_eow = tf.pad(sequences_rev, [[0, 0], [1, 0]], constant_values=MorphoDataset.Factor.EOW)
         return tf.reverse_sequence(sequences_rev_eow, tf.reduce_sum(tf.cast(tf.not_equal(sequences_rev_eow, 0), tf.int32), axis=1), 1)
 
-    @tf.function(input_signature=[tf.TensorSpec(shape=[None, None], dtype=tf.int32)] * 4, autograph=False)
+    # @tf.function(input_signature=[tf.TensorSpec(shape=[None, None], dtype=tf.int32)] * 4, autograph=False)
     def train_batch(self, source_charseq_ids, source_charseqs, target_charseq_ids, target_charseqs):
         # TODO: Modify target_charseqs by appending EOW; only the version with appended EOW is used from now on.
         target_charseqs = self._append_eow(target_charseqs)
@@ -111,7 +111,9 @@ class Network:
     def train_epoch(self, dataset, args):
         for batch in dataset.batches(args.batch_size):
             # TODO: Call train_batch, storing results in `predictions`.
-            predictions = self.train_batch(batch)
+            # predictions = self.train_batch(batch)
+            predictions = self.train_batch(batch[dataset.FORMS].charseq_ids, batch[dataset.FORMS].charseqs,
+                                           batch[dataset.TAGS].charseq_ids, batch[dataset.TAGS].charseqs)
             form, gold_lemma, system_lemma = "", "", ""
             for i in batch[dataset.FORMS].charseqs[1]:
                 if i: form += dataset.data[dataset.FORMS].alphabet[i]
@@ -163,7 +165,7 @@ class Network:
                 # TODO: Define `finished` as True if `outputs` are EOW, False otherwise. [No == or !=].
                 outputs = self._model.target_rnn_cell(inputs)
                 states = self._model.target_rnn_cell([states])
-                outputs = tf.argmax(self._model.target_output_layer(outputs),axis=1,output_type=tf.int32)
+                outputs = tf.math.argmax(self._model.target_output_layer(outputs),axis=2,output_type=tf.int32)
                 next_inputs = self._model.source_embeddings(outputs)
                 finished = False
                 if outputs is MorphoDataset.Factor.EOW:
