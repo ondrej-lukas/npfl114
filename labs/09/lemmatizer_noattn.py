@@ -55,7 +55,7 @@ class Network:
                 @property
                 def batch_size(self):
                     # TODO: Return batch size of self._source_states, using tf.shape
-                    return tf.shape(self._source_states)
+                    return tf.shape(self._source_states)[0]
                 @property
                 def output_size(self):
                     # TODO: Return number of the generated logits
@@ -72,8 +72,8 @@ class Network:
                     # TODO: Define `inputs` as a vector of self.batch_size MorphoDataset.Factor.BOW [see tf.fill],
                     # embedded using self._model.target_embedding
                     # TODO: Define `states` as self._source_states
-                    finished = tf.fill(self.batch_size,False)
-                    inputs = self._model.target_embedding(tf.fill(self.batch_size,MorphoDataset.Factor.BOW))
+                    finished = tf.fill([self.batch_size],False)
+                    inputs = self._model.target_embedding(tf.fill([self.batch_size],MorphoDataset.Factor.BOW))
                     states = self._source_states
                     return finished, inputs, states
 
@@ -84,10 +84,9 @@ class Network:
                     # TODO: Define `next_inputs` by embedding `time`-th words from `self._targets`.
                     # TODO: Define `finished` as True if `time`-th word from `self._targets` is EOW, False otherwise.
                     # Again, no == or !=.
-                    outputs = self._model.target_rnn_cell(inputs)
-                    states = self._model.target_rnn_cell([states])
+                    outputs, [states] = self._model.target_rnn_cell(inputs=inputs,states=[states])
                     outputs = self._model.target_output_layer(outputs)
-                    next_inputs = self.source_embeddings(self._targets[time])
+                    next_inputs = self._model.source_embeddings(self._targets[time])
                     finished = False
                     if self._targets[time] is MorphoDataset.Factor.EOW:
                         finished = True
