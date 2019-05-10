@@ -59,7 +59,7 @@ class Network:
                 @property
                 def output_size(self):
                     # TODO: Return number of the generated logits
-                    pass
+                    return tf.shape(targets)
                 @property
                 def output_dtype(self):
                     # TODO: Return the type of the generated logits
@@ -93,7 +93,9 @@ class Network:
                         finished = True
                     return outputs, states, next_inputs, finished
 
+        print("HERE 1")
         output_layer, _, _ = DecoderTraining()([self._model, source_states, targets])
+        print("HERE")
         # TODO: Compute loss. Use only nonzero `targets` as a mask.
         gradients = tape.gradient(loss, self._model.variables)
         self._optimizer.apply_gradients(zip(gradients, self._model.variables))
@@ -113,7 +115,7 @@ class Network:
             # TODO: Call train_batch, storing results in `predictions`.
             # predictions = self.train_batch(batch)
             predictions = self.train_batch(batch[dataset.FORMS].charseq_ids, batch[dataset.FORMS].charseqs,
-                                           batch[dataset.TAGS].charseq_ids, batch[dataset.TAGS].charseqs)
+                                           batch[dataset.LEMMAS].charseq_ids, batch[dataset.LEMMAS].charseqs)
             form, gold_lemma, system_lemma = "", "", ""
             for i in batch[dataset.FORMS].charseqs[1]:
                 if i: form += dataset.data[dataset.FORMS].alphabet[i]
@@ -150,8 +152,8 @@ class Network:
                 # TODO(train_batch): Define `inputs` as a vector of self.batch_size MorphoDataset.Factor.BOW [see tf.fill],
                 # embedded using self._model.target_embedding
                 # TODO(train_batch): Define `states` as self._source_states
-                finished = tf.fill([self.batch_size,1],False)
-                inputs = tf.fill([self.batch_size,1],MorphoDataset.Factor.BOW)
+                finished = tf.fill(self.batch_size,False)
+                inputs = tf.fill(self.batch_size,MorphoDataset.Factor.BOW)
                 states = self._source_states
                 return finished, inputs, states
 
