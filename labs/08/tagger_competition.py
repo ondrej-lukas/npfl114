@@ -144,6 +144,7 @@ class Network:
         edited = tf.argmax(predictions, axis=2)
         return edited
 
+
 if __name__ == "__main__":
     import argparse
     import datetime
@@ -153,10 +154,10 @@ if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch_size", default=50, type=int, help="Batch size.")
-    parser.add_argument("--epochs", default=15, type=int, help="Number of epochs.")
+    parser.add_argument("--epochs", default=30, type=int, help="Number of epochs.")
     parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
     parser.add_argument("--cle_dim", default=32, type=int, help="Character lvl embedding dimension.")
-    parser.add_argument("--we_dim", default=48, type=int, help="Word lvl embedding dimension.")
+    parser.add_argument("--we_dim", default=64, type=int, help="Word lvl embedding dimension.")
     parser.add_argument("--rnn_dim", default=64, type=int, help="RNN dimension.")
     parser.add_argument("--cnn_filters", default=24, type=int, help="CNN embedding filters per length.")
     parser.add_argument("--cnn_max_width", default=4, type=int, help="Maximum CNN filter width.")
@@ -176,6 +177,7 @@ if __name__ == "__main__":
     ))
 
     # Load the data. Using analyses is only optional.
+
     morpho = MorphoDataset("czech_pdt", max_sentences=5000)
     analyses = MorphoAnalyzer("czech_pdt_analyses")
 

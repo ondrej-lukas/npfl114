@@ -12,7 +12,7 @@ import requests
 
 
 class SlackCallback(tf.keras.callbacks.Callback):
-    def __init__(self,user ,channel='#hulk'):
+    def __init__(self,user=None ,channel='#hulk'):
         self.user = user
         super(SlackCallback, self).__init__()
         

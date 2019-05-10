@@ -23,6 +23,12 @@ class Network:
         self._metrics = {"loss": tf.metrics.Mean(), "edit_distance": tf.metrics.Mean()}
         self._writer = tf.summary.create_file_writer(args.logdir, flush_millis=10 * 1000)
 
+        
+
+        tf.keras.layers.Input(shape=[None, TimitMFCC.MFCC_DIM],dtype=tf.int32)
+    
+
+        self.model = tf.keras.Model(inputs=inputs, outputs=outputs)
     # Converts given tensor with `0` values for padding elements, create
     # a SparseTensor.
     def _to_sparse(self, tensor):
