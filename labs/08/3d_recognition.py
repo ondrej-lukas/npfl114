@@ -29,12 +29,29 @@ class Network:
 
         # Architecture 2
         inputs = tf.keras.layers.Input(shape=[args.modelnet, args.modelnet, args.modelnet,1])
-        hidden = tf.keras.layers.AveragePooling3D((2,2,2))(inputs)
-        hidden = tf.keras.layers.Conv3D(128, kernel_size=(3,3,3))(hidden)
-        hidden = tf.keras.layers.Conv3D(32, kernel_size=(3,3,3))(hidden)
-        hidden = tf.keras.layers.MaxPooling3D((2,2,2))(hidden)
+        hidden = tf.keras.layers.Conv3D(128, kernel_size=(4,4,4),activation=None)(inputs)
+        hidden = tf.keras.layers.BatchNormalization()(hidden)
+        hidden = tf.keras.activations.relu(hidden)
+        hidden = tf.keras.layers.AveragePooling3D((3,3,3),strides=(2,2,2))(hidden)
+        hidden = tf.keras.layers.Conv3D(128, kernel_size=(3,3,3), activation=None)(hidden)
+        hidden = tf.keras.layers.BatchNormalization()(hidden)
+        hidden = tf.keras.activations.relu(hidden)
+        hidden = tf.keras.layers.Dropout(0.2)(hidden)
+        hidden = tf.keras.layers.MaxPooling3D((2,2,2),strides=(2,2,2))(hidden)
+        hidden = tf.keras.layers.Conv3D(256, kernel_size=(3,3,3),activation=None)(hidden)
+        hidden = tf.keras.layers.BatchNormalization()(hidden)
+        hidden = tf.keras.activations.relu(hidden)
+        hidden = tf.keras.layers.Dropout(0.3)(hidden)
+        hidden = tf.keras.layers.AveragePooling3D((2,2,2))(hidden)
+        hidden = tf.keras.layers.Conv3D(256, kernel_size=(2,2,2),activation=None)(hidden)
+        hidden = tf.keras.layers.BatchNormalization()(hidden)
+        hidden = tf.keras.activations.relu(hidden)
+        hidden = tf.keras.layers.Dropout(0.5)(hidden)
         hidden = tf.keras.layers.Flatten()(hidden)
         hidden = tf.keras.layers.ELU()(hidden)
+        hidden = tf.keras.layers.Dense(256)(hidden)
+        hidden = tf.keras.layers.ELU()(hidden)
+        hidden = tf.keras.layers.Dropout(0.5)(hidden)
         outputs = tf.keras.layers.Dense(len(modelnet.LABELS), activation="softmax")(hidden)
 
 
@@ -71,7 +88,7 @@ if __name__ == "__main__":
 
     # Parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size", default=64, type=int, help="Batch size.")
+    parser.add_argument("--batch_size", default=96, type=int, help="Batch size.")
     parser.add_argument("--modelnet", default=32, type=int, help="ModelNet dimension.")
     parser.add_argument("--epochs", default=50, type=int, help="Number of epochs.")
     parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
