@@ -145,13 +145,16 @@ class Network:
 
         class DecoderPrediction(decoder.BaseDecoder):
             @property
-            def batch_size(self): return tf.shape(self._source_states)[0] # TODO: Return batch size of self._source_states, using tf.shape
+            def batch_size(self):
+                return tf.shape(self._source_states)[0] # TODO: Return batch size of self._source_states, using tf.shape
             @property
-            def output_size(self): return 1 # TODO: Return 1 because we are returning directly the predictions
+            def output_size(self):
+                return 1 # TODO: Return 1 because we are returning directly the predictions
             @property
-            def output_dtype(self): return tf.int32 # TODO: Return tf.int32 because the predictions are integral
+            def output_dtype(self):
+                return tf.int32 # TODO: Return tf.int32 because the predictions are integral
 
-            def initialize(self, layer_inputs, initial_state=None):
+            def initialize(self, layer_inputs, initial_state=None, **kwargs):
                 self._model, self._source_states = layer_inputs
 
                 # TODO(train_batch): Define `finished` as a vector of self.batch_size of `False` [see tf.fill].
@@ -160,6 +163,7 @@ class Network:
                 # TODO(train_batch): Define `states` as self._source_states
                 finished = tf.fill([self.batch_size],False)
                 inputs = tf.fill([self.batch_size],MorphoDataset.Factor.BOW)
+                inputs = self._model.target_embedding(inputs)
                 states = self._source_states
                 return finished, inputs, states
 
@@ -171,12 +175,10 @@ class Network:
                 # `output_type=tf.int32` parameter.
                 # TODO: Define `next_inputs` by embedding the `outputs`
                 # TODO: Define `finished` as True if `outputs` are EOW, False otherwise. [No == or !=].
-                outputs, [states] = self._model.target_rnn_cell(inputs,[states])
-                outputs = tf.math.argmax(self._model.target_output_layer(outputs),axis=2,output_type=tf.int32)
-                next_inputs = self._model.source_embeddings(outputs)
-                finished = False
-                if outputs is MorphoDataset.Factor.EOW:
-                    finished = True
+                outputs, [states] = self._model.target_rnn_cell(inputs=inputs,states=[states])
+                outputs = tf.math.argmax(self._model.target_output_layer(outputs),axis=1,output_type=tf.int32)
+                next_inputs = self._model.target_embedding(outputs)
+                finished = tf.equal(outputs, MorphoDataset.Factor.EOW)
                 return outputs, states, next_inputs, finished
 
         predictions, _, _ = DecoderPrediction(maximum_iterations=tf.shape(source_charseqs)[1] + 10)([self._model, source_states])
@@ -222,8 +224,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch_size", default=10, type=int, help="Batch size.")
     parser.add_argument("--cle_dim", default=32, type=int, help="CLE embedding dimension.")
-    parser.add_argument("--epochs", default=10, type=int, help="Number of epochs.")
-    parser.add_argument("--max_sentences", default=500, type=int, help="Maximum number of sentences to load.")
+    parser.add_argument("--epochs", default=1, type=int, help="Number of epochs.")
+    parser.add_argument("--max_sentences", default=50, type=int, help="Maximum number of sentences to load.")
     parser.add_argument("--recodex", default=False, action="store_true", help="Evaluation in ReCodEx.")
     parser.add_argument("--rnn_dim", default=42, type=int, help="RNN cell dimension.")
     parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
