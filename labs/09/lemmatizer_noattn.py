@@ -25,7 +25,7 @@ class Network:
                 self.target_embedding = tf.keras.layers.Embedding(input_dim=num_target_chars, output_dim=args.cle_dim,
                                                                   mask_zero=False)
                 self.target_rnn_cell = tf.keras.layers.GRUCell(units=args.rnn_dim)
-                self.target_output_layer = tf.keras.layers.Dense(num_target_chars, activation="softmax")
+                self.target_output_layer = tf.keras.layers.Dense(num_target_chars)
         self._model = Model()
 
         self._optimizer = tf.optimizers.Adam()
