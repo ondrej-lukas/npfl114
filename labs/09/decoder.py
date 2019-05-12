@@ -335,7 +335,7 @@ def dynamic_decode(decoder,
             decoder_init_input = kwargs.pop("decoder_init_input", None)
             decoder_init_kwargs = kwargs.pop("decoder_init_kwargs", {})
             initial_finished, initial_inputs, initial_state = \
-                decoder.initialize(decoder_init_input, **decoder_init_kwargs)
+                decoder.initialize(decoder_init_input, )
 
         zero_outputs = _create_zero_outputs(
             decoder.output_size, decoder.output_dtype, decoder.batch_size)

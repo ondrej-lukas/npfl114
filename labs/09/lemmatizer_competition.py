@@ -4,7 +4,8 @@ import tensorflow as tf
 
 import decoder
 from morpho_dataset import MorphoDataset
-
+from lemmatizer_attn import Network
+"""
 class Network:
     def __init__(self, args, num_source_chars, num_target_chars):
         # TODO: Define a suitable model.
@@ -28,7 +29,7 @@ class Network:
         # from the flattened representation.
 
         raise NotImplementedError()
-
+"""
 
 if __name__ == "__main__":
     import argparse
@@ -44,7 +45,7 @@ if __name__ == "__main__":
     parser.add_argument("--max_sentences", default=5000, type=int, help="Maximum number of sentences to load.")
     parser.add_argument("--recodex", default=False, action="store_true", help="Evaluation in ReCodEx.")
     parser.add_argument("--rnn_dim", default=64, type=int, help="RNN cell dimension.")
-    parser.add_argument("--threads", default=1, type=int, help="Maximum number of threads to use.")
+    parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
     args = parser.parse_args()
 
     # Fix random seeds and number of threads
