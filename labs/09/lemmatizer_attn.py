@@ -20,7 +20,7 @@ class Network:
                                                                    mask_zero=True)
                 # TODO: Define
                 # - source_rnn as a bidirectional GRU with args.rnn_dim units, returning _whole sequences_, summing opposite directions
-                self.source_rnn = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(args.rnn_dim_units),return_sequences=False,
+                self.source_rnn = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(units=args.rnn_dim,return_sequences=True),
                                                                 merge_mode="sum")
                 # TODO(lemmatizer_noattn): Define
                 # - target_embedding as an unmasked embedding layer of target chars into args.cle_dim dimensions
@@ -89,9 +89,9 @@ class Network:
                     #   Because self._source_encoded does not change, you should in fact do it in `initialize`. CHECK
                     # - Pass `states` though self._model.attention_state_layer. CHECK
                     # - Sum the two outputs. However, the first has shape [a, b, c] and the second [a, c]. Therefore,
-                    #   somehow expand the second to [a, b, c] first. (Hint: use broadcasting rules.)
-                    # - Pass the sum through `tf.tanh`, then self._model.attention_weight_layer.
-                    # - Then, run softmax on a suitable axis (the one corresponding to characters), generating `weights`.
+                    #   somehow expand the second to [a, b, c] first. (Hint: use broadcasting rules.) CHECK
+                    # - Pass the sum through `tf.tanh`, then self._model.attention_weight_layer. CHECK
+                    # - Then, run softmax on a suitable axis (the one corresponding to characters), generating `weights`. CHECK?
                     # - Multiply `self._source_encoded` with `weights` and sum the result in the axis
                     #   corresponding to characters, generating `attention`. Therefore, `attention` is a a fixed-size
                     #   representation for every batch element, independently on how many characters had
@@ -99,10 +99,15 @@ class Network:
                     # - Finally concatenate `inputs` and `attention` and return the result.
                     att_sources = self._model.attention_source_layer(self._source_encoded)
                     att_states = self._model.attention_state_layer(states)
-                    # nejakej reshape?
+                    expanded_att_states = tf.expand_dims(att_states,axis=1)
+                    sum = att_sources + expanded_att_states
+                    sum = self._model.attention_weight_layer(tf.tanh(sum))
+                    weights = tf.nn.softmax(sum,axis=1)
+                    attention = tf.reduce_sum(tf.math.multiply(self._source_encoded,weights),axis=1)
+                    result = tf.concat([inputs, attention],axis=1)
+                    return result
 
-
-                def initialize(self, layer_inputs, initial_state=None):
+                def initialize(self, layer_inputs, initial_state=None, **kwargs):
                     self._model, self._source_encoded, self._targets = layer_inputs
 
                     # TODO(lemmatozer_noattn): Define `finished` as a vector of self.batch_size of `False` [see tf.fill].
@@ -111,7 +116,7 @@ class Network:
                     finished = tf.fill([self.batch_size], False)
                     inputs = self._model.target_embedding(tf.fill([self.batch_size], MorphoDataset.Factor.BOW))
                     # TODO: Define `states` as the last words from self._source_encoded
-                    states = self._source_encoded # ???
+                    states = self._source_encoded[:,-1,:]
                     # TODO: Pass `inputs` through `self._with_attention(inputs, states)`.
                     inputs = self._with_attention(inputs, states)
                     return finished, inputs, states
@@ -126,9 +131,9 @@ class Network:
                     # TODO: Pass `inputs` through `self._with_attention(inputs, states)`.
                     outputs, [states] = self._model.target_rnn_cell(inputs=inputs, states=[states])
                     outputs = self._model.target_output_layer(outputs)
-                    next_inputs = self._model.target_embedding(self._targets[:, time])
-                    finished = tf.equal(self._targets[:, time], MorphoDataset.Factor.EOW)
-                    self._with_attention(inputs, states) #???
+                    next_inputs = self._model.target_embedding(self._targets[:,time])
+                    next_inputs = self._with_attention(next_inputs,states)
+                    finished = tf.equal(self._targets[:,time], MorphoDataset.Factor.EOW)
                     return outputs, states, next_inputs, finished
 
             output_layer, _, _ = DecoderTraining()([self._model, source_encoded, targets])
@@ -187,6 +192,15 @@ class Network:
             def _with_attention(self, inputs, states):
                 # TODO: A copy of _with_attention from train_batch; you can of course
                 # move the definition to a place where it can be reused in both places.
+                att_sources = self._model.attention_source_layer(self._source_encoded)
+                att_states = self._model.attention_state_layer(states)
+                expanded_att_states = tf.expand_dims(att_states, axis=1)
+                sum = att_sources + expanded_att_states
+                sum = self._model.attention_weight_layer(tf.tanh(sum))
+                weights = tf.nn.softmax(sum, axis=1)
+                attention = tf.reduce_sum(tf.math.multiply(self._source_encoded, weights), axis=1)
+                result = tf.concat([inputs, attention], axis=1)
+                return result
 
             def initialize(self, layer_inputs, initial_state=None):
                 self._model, self._source_encoded = layer_inputs
@@ -199,8 +213,8 @@ class Network:
                 finished = tf.fill([self.batch_size], False)
                 inputs = tf.fill([self.batch_size], MorphoDataset.Factor.BOW)
                 inputs = self._model.target_embedding(inputs)
-                states = self._source_encoded # ???
-                inputs = self._with_attention(inputs,states) # ???
+                states = self._source_encoded[:,-1,:]
+                inputs = self._with_attention(inputs,states)
                 return finished, inputs, states
 
             def step(self, time, inputs, states):
@@ -215,8 +229,8 @@ class Network:
                 outputs, [states] = self._model.target_rnn_cell(inputs=inputs, states=[states])
                 outputs = tf.math.argmax(self._model.target_output_layer(outputs), axis=1, output_type=tf.int32)
                 next_inputs = self._model.target_embedding(outputs)
+                next_inputs = self._with_attention(next_inputs,states)
                 finished = tf.equal(outputs, MorphoDataset.Factor.EOW)
-                self._with_attention(inputs,states)
                 return outputs, states, next_inputs, finished
 
         predictions, _, _ = DecoderPrediction(maximum_iterations=tf.shape(source_charseqs)[1] + 10)([self._model, source_encoded])
@@ -266,7 +280,7 @@ if __name__ == "__main__":
     parser.add_argument("--max_sentences", default=5000, type=int, help="Maximum number of sentences to load.")
     parser.add_argument("--recodex", default=False, action="store_true", help="Evaluation in ReCodEx.")
     parser.add_argument("--rnn_dim", default=64, type=int, help="RNN cell dimension.")
-    parser.add_argument("--threads", default=1, type=int, help="Maximum number of threads to use.")
+    parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
     args = parser.parse_args()
 
     # Fix random seeds and number of threads
