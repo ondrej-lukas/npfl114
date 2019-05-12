@@ -39,10 +39,10 @@ if __name__ == "__main__":
 
     # Parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size", default=10, type=int, help="Batch size.")
+    parser.add_argument("--batch_size", default=20, type=int, help="Batch size.")
     parser.add_argument("--cle_dim", default=64, type=int, help="CLE embedding dimension.")
-    parser.add_argument("--epochs", default=10, type=int, help="Number of epochs.")
-    parser.add_argument("--max_sentences", default=5000, type=int, help="Maximum number of sentences to load.")
+    parser.add_argument("--epochs", default=1, type=int, help="Number of epochs.")
+    parser.add_argument("--max_sentences", default=1000, type=int, help="Maximum number of sentences to load.")
     parser.add_argument("--recodex", default=False, action="store_true", help="Evaluation in ReCodEx.")
     parser.add_argument("--rnn_dim", default=64, type=int, help="RNN cell dimension.")
     parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")

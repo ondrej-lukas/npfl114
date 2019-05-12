@@ -264,7 +264,32 @@ class Network:
                 tf.summary.scalar("{}/{}".format(dataset_name, name), value)
 
         return metrics
+        
+    def predict(self, dataset, args):
+        # TODO: Predict method should return a list, each element corresponding
+        # to one sentence. Each sentence should be a list/np.ndarray
+        # containing lemmas for every sentence word, the lemma being a list
+        # of _indices_ of predicted characters, ended by a
+        # MorphoDataset.Factor.EOW.
 
+        # Please note that `predict_batch` from lemmatizer_{noattn,attn} assignments
+        # returns flat list of all non-padding lemmas in the batch. Therefore, you
+        # need to use the `dataset.sentence_lens` to reconstruct original sentences
+        ret = []
+        print("PREDICT")
+        print(dataset.sentence_lens)
+        for batch in dataset.batches(args.batch_size):
+            predictions = self.predict_batch(batch[dataset.FORMS].charseq_ids, batch[dataset.FORMS].charseqs)
+            form, system_lemma = "", "", ""
+            for i in batch[dataset.FORMS].charseqs[1]:
+                if i: form += dataset.data[dataset.FORMS].alphabet[i]
+            for i in range(len(batch[dataset.LEMMAS].charseqs[1])):
+                if batch[dataset.LEMMAS].charseqs[1][i]:
+                    #gold_lemma += dataset.data[dataset.LEMMAS].alphabet[batch[dataset.LEMMAS].charseqs[1][i]]
+                    system_lemma += dataset.data[dataset.LEMMAS].alphabet[predictions[0][i]]
+            ret.append(predictions)
+            print(form,system_lemma)
+        return ret
 
 if __name__ == "__main__":
     import argparse
