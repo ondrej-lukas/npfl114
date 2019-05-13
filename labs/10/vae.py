@@ -16,6 +16,13 @@ class Network:
         #   i-th layer with args.encoder_layers[i] units
         # - generate two outputs z_mean and z_log_variance, each passing the result
         #   of the above line through its own dense layer with args.z_dim units
+        inputs = tf.keras.layers.InputLayer(input_shape=[MNIST.H,MNIST.W,MNIST.C])
+        hidden = tf.keras.layers.Flatten()(inputs)
+        for i in range(0,len(args.encoder_layers)):
+            hidden = tf.keras.layers.Dense(args.encoder_layers[i])(hidden)
+        z_mean = tf.keras.layers.Dense(args.z_dim)(hidden)
+        z_log_variance = tf.keras.layers.Dense(args.z_dim)(hidden)
+        self.encoder = tf.keras.Model(inputs=inputs, outputs=[z_mean,z_log_variance])
 
         # TODO: Define `self.decoder` as a Model, which
         # - takes vectors of [args.z_dim] shape on input
@@ -24,6 +31,15 @@ class Network:
         # - applies output dense layer with MNIST.H * MNIST.W * MNIST.C units
         #   and a suitable output activation
         # - reshapes the output (tf.keras.layers.Reshape) to [MNIST.H, MNIST.W, MNISt.C]
+        inputs2 = tf.keras.layers.InputLayer(input_shape=[args.z_dim])
+        for i in range(0,len(args.decoder_layers)):
+            if i == 0:
+                hidden = tf.keras.layers.Dense(args.decoder_layers[i])(inputs2)
+            else:
+                hidden = tf.keras.layers.Dense(args.decoder_layers[i])(hidden)
+        hidden = tf.keras.layers.Dense(MNIST.H * MNIST.W * MNIST.C,activation="softmax")(hidden) # activation?
+        output = tf.keras.layers.Reshape((MNIST.H, MNIST.W, MNIST.C))(hidden)
+        self.decoder = tf.keras.Model(inputs=inputs2, outputs=output)
 
         self._optimizer = tf.optimizers.Adam()
         self._reconstruction_loss_fn = tf.losses.BinaryCrossentropy()
@@ -39,10 +55,12 @@ class Network:
     def train_batch(self, images):
         with tf.GradientTape() as tape:
             # TODO: Compute z_mean and z_log_variance of given images using `self.encoder`; do not forget about `training=True`.
-
+            z_mean, z_log_variance = self.encoder(images,training=True)
             # TODO: Sample `z` from a Normal distribution with mean `z_mean` and variance `exp(z_log_variance)`.
-
-            # TODO: Decode images using `z`.
+            # tfd = tfp.distributions
+            # distribution = tfd.Normal(loc=z_mean,scale=tf.math.exp(z_log_variance))
+            # z = distribution.sample(1)
+            # TODO: Decode images using `z`. # HOW?
 
             # TODO: Define `reconstruction_loss` using self._reconstruction_loss_fn
             # TODO: Define `latent_loss` as a mean of KL divergences of suitable distributions.
