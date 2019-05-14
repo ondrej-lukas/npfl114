@@ -158,6 +158,7 @@ class Network:
             # TODO(lemmatizer_noattn): Call train_batch, storing results in `predictions`.
             predictions = self.train_batch(batch[dataset.FORMS].charseq_ids, batch[dataset.FORMS].charseqs,
                                            batch[dataset.LEMMAS].charseq_ids, batch[dataset.LEMMAS].charseqs)
+            preds = np.array(predictions)
             form, gold_lemma, system_lemma = "", "", ""
             for i in batch[dataset.FORMS].charseqs[1]:
                 if i: form += dataset.data[dataset.FORMS].alphabet[i]
@@ -277,18 +278,19 @@ class Network:
         # need to use the `dataset.sentence_lens` to reconstruct original sentences
         ret = []
         print("PREDICT")
-        print(dataset.sentence_lens)
+        # print(dataset.sentence_lens)
         for batch in dataset.batches(args.batch_size):
             predictions = self.predict_batch(batch[dataset.FORMS].charseq_ids, batch[dataset.FORMS].charseqs)
-            form, system_lemma = "", "", ""
+            form = ""
+            system_lemma = ""
             for i in batch[dataset.FORMS].charseqs[1]:
                 if i: form += dataset.data[dataset.FORMS].alphabet[i]
             for i in range(len(batch[dataset.LEMMAS].charseqs[1])):
                 if batch[dataset.LEMMAS].charseqs[1][i]:
-                    #gold_lemma += dataset.data[dataset.LEMMAS].alphabet[batch[dataset.LEMMAS].charseqs[1][i]]
+                    # gold_lemma += dataset.data[dataset.LEMMAS].alphabet[batch[dataset.LEMMAS].charseqs[1][i]]
                     system_lemma += dataset.data[dataset.LEMMAS].alphabet[predictions[0][i]]
             ret.append(predictions)
-            print(form,system_lemma)
+            # print(form,system_lemma)
         return ret
 
 if __name__ == "__main__":
