@@ -39,7 +39,7 @@ if __name__ == "__main__":
 
     # Parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size", default=20, type=int, help="Batch size.")
+    parser.add_argument("--batch_size", default=5, type=int, help="Batch size.")
     parser.add_argument("--cle_dim", default=64, type=int, help="CLE embedding dimension.")
     parser.add_argument("--epochs", default=1, type=int, help="Number of epochs.")
     parser.add_argument("--max_sentences", default=1000, type=int, help="Maximum number of sentences to load.")
