@@ -15,11 +15,11 @@ class Network:
         # - applies len(args.encoder_layers) dense layers with ReLU activation,
         #   i-th layer with args.encoder_layers[i] units
         # - generate two outputs z_mean and z_log_variance, each passing the result
-        #   of the above line through its own dense layer with args.z_dim units
-        inputs = tf.keras.layers.InputLayer(input_shape=[MNIST.H,MNIST.W,MNIST.C])
+        #   of the above line through its own dense layer with args.z_dim units/  
+        inputs = tf.keras.layers.Input(shape=[MNIST.H,MNIST.W,MNIST.C])
         hidden = tf.keras.layers.Flatten()(inputs)
         for i in range(0,len(args.encoder_layers)):
-            hidden = tf.keras.layers.Dense(args.encoder_layers[i])(hidden)
+            hidden = tf.keras.layers.Dense(args.encoder_layers[i], activation="relu")(hidden)
         z_mean = tf.keras.layers.Dense(args.z_dim)(hidden)
         z_log_variance = tf.keras.layers.Dense(args.z_dim)(hidden)
         self.encoder = tf.keras.Model(inputs=inputs, outputs=[z_mean,z_log_variance])
@@ -31,7 +31,7 @@ class Network:
         # - applies output dense layer with MNIST.H * MNIST.W * MNIST.C units
         #   and a suitable output activation
         # - reshapes the output (tf.keras.layers.Reshape) to [MNIST.H, MNIST.W, MNISt.C]
-        inputs2 = tf.keras.layers.InputLayer(input_shape=[args.z_dim])
+        inputs2 = tf.keras.layers.Input(shape=[args.z_dim])
         for i in range(0,len(args.decoder_layers)):
             if i == 0:
                 hidden = tf.keras.layers.Dense(args.decoder_layers[i])(inputs2)
@@ -57,26 +57,39 @@ class Network:
             # TODO: Compute z_mean and z_log_variance of given images using `self.encoder`; do not forget about `training=True`.
             z_mean, z_log_variance = self.encoder(images,training=True)
             # TODO: Sample `z` from a Normal distribution with mean `z_mean` and variance `exp(z_log_variance)`.
+
             # tfd = tfp.distributions
-            # distribution = tfd.Normal(loc=z_mean,scale=tf.math.exp(z_log_variance))
-            # z = distribution.sample(1)
+            z = tf.random.normal(shape=[self._z_dim], mean=z_mean, stddev=tf.math.exp(z_log_variance))
             # TODO: Decode images using `z`. # HOW?
-
+            Xgen = self.decoder(z)
             # TODO: Define `reconstruction_loss` using self._reconstruction_loss_fn
+            #binary cross entropy = Xinput*log(Xgen) + (1-Xinput)log(1-Xgen) = reconstruction loss
+            reconstruction_loss = self._reconstruction_loss_fn(images, Xgen) 
             # TODO: Define `latent_loss` as a mean of KL divergences of suitable distributions.
+            #latent loss = KL divergence of generated distribution  and p(Z) = N(0,1)
+            latent_loss = self._kl_divergence(z_mean, z_log_variance, 0,1)
             # TODO: Define `loss` as a weighted sum of the reconstruction_loss (weighted by the number
+            #LOSS = W*H*C*bce + |z|* latent loss
+            loss = reconstruction_loss*MNIST.H*MNIST.W*MNIST.C + self._z_dim*latent_loss
+
             # of pixels in one image) and the latent_loss (weighted by self._z_dim).
-            pass
-        # TODO: Compute gradients with respect to trainable variables of the encoder and the decoder.
-        # TODO: Apply the gradients to encoder and decoder trainable variables.
+            variables = self.encoder.trainable_variables + self.decoder.trainable_variables
+            gradients = tape.gradient(loss,variables)
+            print("gradients ok")
+            #self._optimizer.apply_gradients(zip(gradients_decoder, self.decoder.variables))
+            self._optimizer.apply_gradients(zip(gradients, variables))
+            print("optimizer ok")
+            # TODO: Compute gradients with respect to trainable variables of the encoder and the decoder.
+            # TODO: Apply the gradients to encoder and decoder trainable variables.
 
-        tf.summary.experimental.set_step(self._optimizer.iterations)
-        with self._writer.as_default():
-            tf.summary.scalar("vae/reconstruction_loss", reconstruction_loss)
-            tf.summary.scalar("vae/latent_loss", latent_loss)
-            tf.summary.scalar("vae/loss", loss)
-
-        return loss
+            tf.summary.experimental.set_step(self._optimizer.iterations)
+            print("set step ok")
+            with self._writer.as_default():
+                tf.summary.scalar("vae/reconstruction_loss", reconstruction_loss)
+                tf.summary.scalar("vae/latent_loss", latent_loss)
+                tf.summary.scalar("vae/loss", loss)
+            print("writing ok")
+            return loss
 
     def generate(self):
         GRID = 20
