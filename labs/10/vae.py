@@ -36,10 +36,10 @@ class Network:
         inputs2 = tf.keras.layers.Input(shape=[args.z_dim])
         for i in range(0,len(args.decoder_layers)):
             if i == 0:
-                hidden = tf.keras.layers.Dense(args.decoder_layers[i])(inputs2)
+                hidden = tf.keras.layers.Dense(args.decoder_layers[i], activation="relu")(inputs2)
             else:
-                hidden = tf.keras.layers.Dense(args.decoder_layers[i])(hidden)
-        hidden = tf.keras.layers.Dense(MNIST.H * MNIST.W * MNIST.C,activation="relu")(hidden) # activation?
+                hidden = tf.keras.layers.Dense(args.decoder_layers[i], activation="relu")(hidden)
+        hidden = tf.keras.layers.Dense(MNIST.H * MNIST.W * MNIST.C,activation="sigmoid")(hidden) # activation?
         output = tf.keras.layers.Reshape((MNIST.H, MNIST.W, MNIST.C))(hidden)
         self.decoder = tf.keras.Model(inputs=inputs2, outputs=output)
 
@@ -61,7 +61,7 @@ class Network:
             # TODO: Sample `z` from a Normal distribution with mean `z_mean` and variance `exp(z_log_variance)`.
 
             # tfd = tfp.distributions
-            z = tf.random.normal(shape=[self._z_dim], mean=z_mean, stddev=tf.math.exp(z_log_variance))
+            z = tf.random.normal(shape=[self._z_dim], mean=z_mean, stddev=tf.math.exp(z_log_variance/2),seed=42)
             # TODO: Decode images using `z`. # HOW?
             Xgen = self.decoder(z)
             # TODO: Define `reconstruction_loss` using self._reconstruction_loss_fn
@@ -70,7 +70,7 @@ class Network:
             #print("reconstruction loss:", reconstruction_loss)
             # TODO: Define `latent_loss` as a mean of KL divergences of suitable distributions.
             #latent loss = KL divergence of generated distribution  and p(Z) = N(0,1)
-            latent_loss = tf.reduce_mean(self._kl_divergence(z_mean, z_log_variance, 0,1))
+            latent_loss = tf.reduce_mean(self._kl_divergence(z_mean, tf.math.exp(z_log_variance/2), 0,1))
             #print("latent:", latent_loss)
             # TODO: Define `loss` as a weighted sum of the reconstruction_loss (weighted by the number
             #LOSS = W*H*C*bce + |z|* latent loss
@@ -84,8 +84,7 @@ class Network:
             self._optimizer.apply_gradients(zip(gradients, variables))
             #print("optimizer ok")
             # TODO: Compute gradients with respect to trainable variables of the encoder and the decoder.
-            # TODO: Apply the gradients to encoder and decoder trainable variables.
-
+            # TODO: Apply the gradients to encoder and decoder trainable variables.x`
             tf.summary.experimental.set_step(self._optimizer.iterations)
             
             
@@ -148,7 +147,7 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", default=100, type=int, help="Number of epochs.")
     parser.add_argument("--recodex", default=False, action="store_true", help="Evaluation in ReCodEx.")
     parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
-    parser.add_argument("--z_dim", default=2, type=int, help="Dimension of Z.")
+    parser.add_argument("--z_dim", default=100, type=int, help="Dimension of Z.")
     args = parser.parse_args()
     args.decoder_layers = [int(decoder_layer) for decoder_layer in args.decoder_layers.split(",")]
     args.encoder_layers = [int(encoder_layer) for encoder_layer in args.encoder_layers.split(",")]
