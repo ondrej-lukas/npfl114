@@ -51,7 +51,7 @@ class Network:
         """Sample random latent variable."""
         return tf.random.uniform([batch_size, self._z_dim], -1, 1)
 
-    #@tf.function
+    @tf.function
     def train_batch(self, images):
         # TODO: Generator training. Using a Gradient tape:
         # - generate random images using a `generator`; do not forget about `training=True`
@@ -78,7 +78,7 @@ class Network:
         with tf.GradientTape() as tape:
             discriminated_real = self.discriminator(images, training=True)
             discriminated_fake = self.discriminator(random_images, training=True)
-            loss_dis = self._loss_fn(tf.ones_like(discriminated_real) + tf.zeros_like(discriminated_fake), discriminated_real + discriminated_fake)
+            loss_dis = self._loss_fn(tf.ones_like(discriminated_real), discriminated_real) + self._loss_fn(tf.zeros_like(discriminated_fake), discriminated_fake)
             variables_dis = self.discriminator.trainable_variables
             gradients_dis = tape.gradient(loss_dis, variables_dis)
             self._discriminator_optimizer.apply_gradients(zip(gradients_dis, variables_dis))
