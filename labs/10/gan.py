@@ -59,9 +59,9 @@ class Network:
         # - compute loss using `_loss_fn`, with target labels `tf.ones_like(discriminator_output)`
         # Then, compute the gradients with respect to generator trainable variables and update
         # generator trainable weights using self._generator_optimizer.
-        #print(len(images))
+        #print(images.shape[0])
         with tf.GradientTape() as tape:
-            random_images = self.generator(self._sample_z(len(images)),training=True)
+            random_images = self.generator(self._sample_z(images.shape[0]),training=True)
             discriminator_output = self.discriminator(random_images)
             loss_gen = self._loss_fn(tf.ones_like(discriminator_output), discriminator_output)
             variables_gen = self.generator.trainable_variables
