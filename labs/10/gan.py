@@ -49,7 +49,7 @@ class Network:
 
     def _sample_z(self, batch_size):
         """Sample random latent variable."""
-        return tf.random.uniform([batch_size, self._z_dim], -1, 1)
+        return tf.random.uniform([batch_size, self._z_dim], -1, 1,seed=42)
 
     @tf.function
     def train_batch(self, images):
@@ -131,7 +131,7 @@ if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch_size", default=50, type=int, help="Batch size.")
-    parser.add_argument("--dataset", default="mnist", type=str, help="MNIST-like dataset to use.")
+    parser.add_argument("--dataset", default="mnist-fashion", type=str, help="MNIST-like dataset to use.")
     parser.add_argument("--discriminator_layers", default="128", type=str, help="Discriminator layers.")
     parser.add_argument("--epochs", default=100, type=int, help="Number of epochs.")
     parser.add_argument("--generator_layers", default="128", type=str, help="Generator layers.")
@@ -166,7 +166,7 @@ if __name__ == "__main__":
     network = Network(args)
     for epoch in range(args.epochs):
         loss = network.train_epoch(mnist.train, args)
-        print(f"Epoch #{epoch}, loss={loss}")
+        #print(f"Epoch #{epoch}, loss={loss}")
 
     with open("gan.out", "w") as out_file:
         print("{:.2f}".format(loss), file=out_file)
