@@ -37,7 +37,7 @@ class Network:
                 hidden = tf.keras.layers.Dense(args.decoder_layers[i])(inputs2)
             else:
                 hidden = tf.keras.layers.Dense(args.decoder_layers[i])(hidden)
-        hidden = tf.keras.layers.Dense(MNIST.H * MNIST.W * MNIST.C,activation="softmax")(hidden) # activation?
+        hidden = tf.keras.layers.Dense(MNIST.H * MNIST.W * MNIST.C,activation="relu")(hidden) # activation?
         output = tf.keras.layers.Reshape((MNIST.H, MNIST.W, MNIST.C))(hidden)
         self.decoder = tf.keras.Model(inputs=inputs2, outputs=output)
 
@@ -64,10 +64,12 @@ class Network:
             Xgen = self.decoder(z)
             # TODO: Define `reconstruction_loss` using self._reconstruction_loss_fn
             #binary cross entropy = Xinput*log(Xgen) + (1-Xinput)log(1-Xgen) = reconstruction loss
-            reconstruction_loss = self._reconstruction_loss_fn(images, Xgen) 
+            reconstruction_loss = self._reconstruction_loss_fn(images, Xgen)
+            print("reconstruction loss:", reconstruction_loss)
             # TODO: Define `latent_loss` as a mean of KL divergences of suitable distributions.
             #latent loss = KL divergence of generated distribution  and p(Z) = N(0,1)
             latent_loss = self._kl_divergence(z_mean, z_log_variance, 0,1)
+            print("latent:", latent_loss)
             # TODO: Define `loss` as a weighted sum of the reconstruction_loss (weighted by the number
             #LOSS = W*H*C*bce + |z|* latent loss
             loss = reconstruction_loss*MNIST.H*MNIST.W*MNIST.C + self._z_dim*latent_loss
@@ -83,12 +85,14 @@ class Network:
             # TODO: Apply the gradients to encoder and decoder trainable variables.
 
             tf.summary.experimental.set_step(self._optimizer.iterations)
-            print("set step ok")
+            
+            """
             with self._writer.as_default():
                 tf.summary.scalar("vae/reconstruction_loss", reconstruction_loss)
                 tf.summary.scalar("vae/latent_loss", latent_loss)
                 tf.summary.scalar("vae/loss", loss)
-            print("writing ok")
+                print("writing ok")
+            """
             return loss
 
     def generate(self):
@@ -138,11 +142,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch_size", default=50, type=int, help="Batch size.")
     parser.add_argument("--dataset", default="mnist", type=str, help="MNIST-like dataset to use.")
-    parser.add_argument("--decoder_layers", default="500,500", type=str, help="Decoder layers.")
-    parser.add_argument("--encoder_layers", default="500,500", type=str, help="Encoder layers.")
+    parser.add_argument("--decoder_layers", default="500,500,500", type=str, help="Decoder layers.")
+    parser.add_argument("--encoder_layers", default="500,500,500", type=str, help="Encoder layers.")
     parser.add_argument("--epochs", default=100, type=int, help="Number of epochs.")
     parser.add_argument("--recodex", default=False, action="store_true", help="Evaluation in ReCodEx.")
-    parser.add_argument("--threads", default=1, type=int, help="Maximum number of threads to use.")
+    parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
     parser.add_argument("--z_dim", default=100, type=int, help="Dimension of Z.")
     args = parser.parse_args()
     args.decoder_layers = [int(decoder_layer) for decoder_layer in args.decoder_layers.split(",")]
@@ -172,6 +176,6 @@ if __name__ == "__main__":
     network = Network(args)
     for epoch in range(args.epochs):
         loss = network.train_epoch(mnist.train, args)
-
+        print(loss)
     with open("vae.out", "w") as out_file:
         print("{:.2f}".format(loss), file=out_file)
