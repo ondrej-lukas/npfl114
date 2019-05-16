@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+#bfc95faa-444e-11e9-b0fd-00505601122b
+#3da961ed-4364-11e9-b0fd-00505601122b
 import numpy as np
 import tensorflow as tf
 
@@ -18,6 +20,17 @@ class Network:
         #   stride 2, same padding, and ReLU activation
         # - applies transposed convolution with 1 filters, kernel size 5,
         #   stride 2, same padding, and sigmoid activation
+        input_gen = tf.keras.layers.Input(shape=[args.z_dim])
+        hidden = tf.keras.layers.Dense(1024, activation="relu", use_bias=False)(input_gen)
+        hidden = tf.keras.layers.BatchNormalization()(hidden)
+        hidden = tf.keras.layers.Dense((MNIST.H//4)*(MNIST.W//4)*64, activation="relu", use_bias=False)(hidden)
+        hidden = tf.keras.layers.BatchNormalization()(hidden)
+        hidden = tf.keras.layers.Reshape((MNIST.H//4, MNIST.W//4, 64))(hidden)
+        hidden = tf.keras.layers.Conv2DTranspose(filters=32, kernel_size=(5,5), strides=(2,2), activation="relu", use_bias=False, padding="same")(hidden)
+        hidden = tf.keras.layers.BatchNormalization()(hidden)
+        output_gen = tf.keras.layers.Conv2DTranspose(filters=1, kernel_size=(5,5), strides=(2,2), activation="sigmoid", use_bias=False, padding="same")(hidden)
+        
+        self.generator = tf.keras.Model(inputs=input_gen, outputs=output_gen)
 
         # TODO: Define `self.discriminator` as a Model, which
         # - takes input images with shape [MNIST.H, MNIST.W, MNIST.C]
@@ -31,6 +44,21 @@ class Network:
         # - applies batch normalized dense layer with 1024 uints and ReLU activation
         # - applies output dense layer with one output and a suitable activation function
 
+        input_d = tf.keras.layers.Input(shape=[MNIST.H, MNIST.W, MNIST.C])
+        hidden = tf.keras.layers.Conv2DTranspose(filters=32, kernel_size=(5,5), strides=(2,2), activation="relu", use_bias=True, padding="same")(input_d)
+        hidden = tf.keras.layers.BatchNormalization()(hidden)
+        hidden = tf.keras.layers.MaxPool2D(pool_size=(2,2), strides=(2,2))(hidden)
+        hidden = tf.keras.layers.Conv2DTranspose(filters=64, kernel_size=(5,5), strides=(2,2), activation="relu", use_bias=True, padding="same")(input_d)
+        hidden = tf.keras.layers.BatchNormalization()(hidden)
+        hidden = tf.keras.layers.MaxPool2D(pool_size=(2,2), strides=(2,2))(hidden)
+        hidden = tf.keras.layers.Flatten()(hidden)
+        hidden = tf.keras.layers.Dense(1024, activation="relu")(hidden)
+        hidden = tf.keras.layers.BatchNormalization()(hidden)
+        output_d = tf.keras.layers.Dense(1, activation="sigmoid")(hidden)
+        self.discriminator = tf.keras.Model(inputs=input_d, outputs=output_d)
+
+
+
         self._generator_optimizer, self._discriminator_optimizer = tf.optimizers.Adam(), tf.optimizers.Adam()
         self._loss_fn = tf.losses.BinaryCrossentropy()
         self._discriminator_accuracy = tf.metrics.Mean()
@@ -38,7 +66,7 @@ class Network:
 
     def _sample_z(self, batch_size):
         """Sample random latent variable."""
-        return tf.random.uniform([batch_size, self._z_dim], -1, 1)
+        return tf.random.uniform([batch_size, self._z_dim], -1, 1,seed=42)
 
     @tf.function
     def train_batch(self, images):
@@ -48,6 +76,13 @@ class Network:
         # - compute loss using `_loss_fn`, with target labels `tf.ones_like(discriminator_output)`
         # Then, compute the gradients with respect to generator trainable variables and update
         # generator trainable weights using self._generator_optimizer.
+        with tf.GradientTape() as tape:
+            random_images = self.generator(self._sample_z(images.shape[0]),training=True)
+            discriminator_output = self.discriminator(random_images)
+            loss_gen = self._loss_fn(tf.ones_like(discriminator_output), discriminator_output)
+            variables_gen = self.generator.trainable_variables
+            gradients_gen = tape.gradient(loss_gen, variables_gen)
+            self._generator_optimizer.apply_gradients(zip(gradients_gen, variables_gen))
 
         # TODO(gan): Discriminator training. Using a Gradient tape:
         # - discriminate `images`, storing results in `discriminated_real`
@@ -56,16 +91,23 @@ class Network:
         #   suitable target labels (`tf.zeros_like` and `tf.ones_like` come handy).
         # Then, compute the gradients with respect to discriminator trainable variables and update
         # discriminator trainable weights using self._discriminator_optimizer.
+        with tf.GradientTape() as tape:
+            discriminated_real = self.discriminator(images, training=True)
+            discriminated_fake = self.discriminator(random_images, training=True)
+            loss_dis = self._loss_fn(tf.ones_like(discriminated_real), discriminated_real) + self._loss_fn(tf.zeros_like(discriminated_fake), discriminated_fake)
+            variables_dis = self.discriminator.trainable_variables
+            gradients_dis = tape.gradient(loss_dis, variables_dis)
+            self._discriminator_optimizer.apply_gradients(zip(gradients_dis, variables_dis))
 
         self._discriminator_accuracy(tf.greater(discriminated_real, 0.5))
         self._discriminator_accuracy(tf.less(discriminated_fake, 0.5))
         tf.summary.experimental.set_step(self._discriminator_optimizer.iterations)
         with self._writer.as_default():
-            tf.summary.scalar("gan/generator_loss", generator_loss)
-            tf.summary.scalar("gan/discriminator_loss", discriminator_loss)
+            tf.summary.scalar("gan/generator_loss", loss_gen)
+            tf.summary.scalar("gan/discriminator_loss", loss_dis)
             tf.summary.scalar("gan/discriminator_accuracy", self._discriminator_accuracy.result())
 
-        return generator_loss + discriminator_loss
+        return loss_gen + loss_dis
 
     def generate(self):
         GRID = 20
@@ -105,15 +147,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch_size", default=50, type=int, help="Batch size.")
     parser.add_argument("--dataset", default="mnist", type=str, help="MNIST-like dataset to use.")
-    parser.add_argument("--discriminator_layers", default="128", type=str, help="Discriminator layers.")
     parser.add_argument("--epochs", default=100, type=int, help="Number of epochs.")
-    parser.add_argument("--generator_layers", default="128", type=str, help="Generator layers.")
     parser.add_argument("--recodex", default=False, action="store_true", help="Evaluation in ReCodEx.")
     parser.add_argument("--threads", default=1, type=int, help="Maximum number of threads to use.")
     parser.add_argument("--z_dim", default=100, type=int, help="Dimension of Z.")
     args = parser.parse_args()
-    args.discriminator_layers = [int(discriminator_layer) for discriminator_layer in args.discriminator_layers.split(",")]
-    args.generator_layers = [int(generator_layer) for generator_layer in args.generator_layers.split(",")]
+    #args.discriminator_layers = [int(discriminator_layer) for discriminator_layer in args.discriminator_layers.split(",")]
+    #args.generator_layers = [int(generator_layer) for generator_layer in args.generator_layers.split(",")]
 
     # Fix random seeds
     np.random.seed(42)
