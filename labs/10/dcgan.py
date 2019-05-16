@@ -45,10 +45,10 @@ class Network:
         # - applies output dense layer with one output and a suitable activation function
 
         input_d = tf.keras.layers.Input(shape=[MNIST.H, MNIST.W, MNIST.C])
-        hidden = tf.keras.layers.Conv2DTranspose(filters=32, kernel_size=(5,5), strides=(2,2), activation="relu", use_bias=True, padding="same")(input_d)
+        hidden = tf.keras.layers.Conv2D(filters=32, kernel_size=(5,5), strides=(2,2), activation="relu", use_bias=False, padding="same")(input_d)
         hidden = tf.keras.layers.BatchNormalization()(hidden)
         hidden = tf.keras.layers.MaxPool2D(pool_size=(2,2), strides=(2,2))(hidden)
-        hidden = tf.keras.layers.Conv2DTranspose(filters=64, kernel_size=(5,5), strides=(2,2), activation="relu", use_bias=True, padding="same")(input_d)
+        hidden = tf.keras.layers.Conv2D(filters=64, kernel_size=(5,5), strides=(2,2), activation="relu", use_bias=False, padding="same")(hidden)
         hidden = tf.keras.layers.BatchNormalization()(hidden)
         hidden = tf.keras.layers.MaxPool2D(pool_size=(2,2), strides=(2,2))(hidden)
         hidden = tf.keras.layers.Flatten()(hidden)
@@ -149,7 +149,7 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", default="mnist", type=str, help="MNIST-like dataset to use.")
     parser.add_argument("--epochs", default=100, type=int, help="Number of epochs.")
     parser.add_argument("--recodex", default=False, action="store_true", help="Evaluation in ReCodEx.")
-    parser.add_argument("--threads", default=1, type=int, help="Maximum number of threads to use.")
+    parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
     parser.add_argument("--z_dim", default=100, type=int, help="Dimension of Z.")
     args = parser.parse_args()
     #args.discriminator_layers = [int(discriminator_layer) for discriminator_layer in args.discriminator_layers.split(",")]
