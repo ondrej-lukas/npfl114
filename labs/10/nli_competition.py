@@ -19,6 +19,18 @@ class Network:
         # being the predicted language for a sencence.
         raise NotImplementedError()
 
+    def parse_sentences(self,dataset):
+        dot_key = dataset._vocabulary_maps['chars']['.']
+        essays = dataset._word_ids
+        for e in essays:
+            dots = 0
+            for element in e:
+                if element == dot_key:
+                    dots += 1
+            print(dots)
+            # print(dot_ixs)
+
+
 
 if __name__ == "__main__":
     import argparse
@@ -51,6 +63,7 @@ if __name__ == "__main__":
 
     # Create the network and train
     network = Network(args)
+    network.parse_sentences(nli.train)
     for epoch in range(args.epochs):
         network.train_epoch(nli, args)
 
