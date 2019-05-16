@@ -21,15 +21,17 @@ class Network:
         # - applies transposed convolution with 1 filters, kernel size 5,
         #   stride 2, same padding, and sigmoid activation
         input_gen = tf.keras.layers.Input(shape=[args.z_dim])
-        hidden = tf.keras.layers.Dense(1024, activation="relu", use_bias=False)(input_gen)
+        hidden = tf.keras.layers.Dense(1024, activation=None, use_bias=False)(input_gen)
         hidden = tf.keras.layers.BatchNormalization()(hidden)
-        hidden = tf.keras.layers.Dense((MNIST.H//4)*(MNIST.W//4)*64, activation="relu", use_bias=False)(hidden)
+        hidden = tf.keras.layers.ReLU()(hidden)
+        hidden = tf.keras.layers.Dense((MNIST.H//4)*(MNIST.W//4)*64, activation=None, use_bias=False)(hidden)
         hidden = tf.keras.layers.BatchNormalization()(hidden)
+        hidden = tf.keras.layers.ReLU()(hidden)
         hidden = tf.keras.layers.Reshape((MNIST.H//4, MNIST.W//4, 64))(hidden)
-        hidden = tf.keras.layers.Conv2DTranspose(filters=32, kernel_size=(5,5), strides=(2,2), activation="relu", use_bias=False, padding="same")(hidden)
+        hidden = tf.keras.layers.Conv2DTranspose(filters=32, kernel_size=(5,5), strides=(2,2), activation=None, use_bias=False, padding="same")(hidden)
         hidden = tf.keras.layers.BatchNormalization()(hidden)
-        output_gen = tf.keras.layers.Conv2DTranspose(filters=1, kernel_size=(5,5), strides=(2,2), activation="sigmoid", use_bias=False, padding="same")(hidden)
-        
+        hidden = tf.keras.layers.ReLU()(hidden)
+        output_gen = tf.keras.layers.Conv2DTranspose(filters=1, kernel_size=(5,5), strides=(2,2), activation="sigmoid", padding="same")(hidden)
         self.generator = tf.keras.Model(inputs=input_gen, outputs=output_gen)
 
         # TODO: Define `self.discriminator` as a Model, which
@@ -45,15 +47,18 @@ class Network:
         # - applies output dense layer with one output and a suitable activation function
 
         input_d = tf.keras.layers.Input(shape=[MNIST.H, MNIST.W, MNIST.C])
-        hidden = tf.keras.layers.Conv2D(filters=32, kernel_size=(5,5), strides=(2,2), activation="relu", use_bias=False, padding="same")(input_d)
+        hidden = tf.keras.layers.Conv2D(filters=32, kernel_size=(5,5), strides=(2,2),use_bias=False, activation=None, padding="same")(input_d)
         hidden = tf.keras.layers.BatchNormalization()(hidden)
+        hidden = tf.keras.layers.ReLU()(hidden)
         hidden = tf.keras.layers.MaxPool2D(pool_size=(2,2), strides=(2,2))(hidden)
-        hidden = tf.keras.layers.Conv2D(filters=64, kernel_size=(5,5), strides=(2,2), activation="relu", use_bias=False, padding="same")(hidden)
+        hidden = tf.keras.layers.Conv2D(filters=64, kernel_size=(5,5), strides=(2,2), use_bias=False, activation=None, padding="same")(hidden)
         hidden = tf.keras.layers.BatchNormalization()(hidden)
+        hidden = tf.keras.layers.ReLU()(hidden)
         hidden = tf.keras.layers.MaxPool2D(pool_size=(2,2), strides=(2,2))(hidden)
         hidden = tf.keras.layers.Flatten()(hidden)
-        hidden = tf.keras.layers.Dense(1024, activation="relu")(hidden)
+        hidden = tf.keras.layers.Dense(1024, activation=None,use_bias=False)(hidden)
         hidden = tf.keras.layers.BatchNormalization()(hidden)
+        hidden = tf.keras.layers.ReLU()(hidden)
         output_d = tf.keras.layers.Dense(1, activation="sigmoid")(hidden)
         self.discriminator = tf.keras.Model(inputs=input_d, outputs=output_d)
 
