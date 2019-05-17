@@ -25,7 +25,8 @@ class Network:
         embedded_words = tf.keras.layers.Embedding(input_dim=args.num_words, output_dim=args.we_dim, mask_zero=True)(word_ids)
         #concatanate
         concat = tf.keras.layers.Concatenate()([embedded_words, replace])
-        hidden = tf.keras.layers.Bidirectional(getattr(tf.keras.layers,"LSTM")(args.rnn_cell_dim, return_sequences=False), merge_mode="concat")(concat)
+        hidden = tf.keras.layers.Bidirectional(getattr(tf.keras.layers,"LSTM")(args.rnn_cell_dim,return_sequences=False), merge_mode="concat")(concat)
+        hidden = tf.keras.layers.Dense(1024 , activation='relu')(hidden)
         out = tf.keras.layers.Dense(args.num_languages, activation="softmax")(hidden)
         self.model = tf.keras.Model(inputs=[word_ids, charseq_ids, charseqs,lvl], outputs=out)
         self._optimizer = tf.optimizers.Adam()
@@ -40,11 +41,11 @@ class Network:
         with tf.GradientTape() as tape:
             pred = self.model(inputs, training=True)
             #print(probabilities.shape, targets.shape)
-            #print(targets, pred, loss)
+            #print(targets, pred)
             loss = self._loss(targets,pred)
-            print(loss)
             gradients = tape.gradient(loss, self.model.variables)
             self._optimizer.apply_gradients(zip(gradients, self.model.variables))
+        print(loss)
 
         tf.summary.experimental.set_step(self._optimizer.iterations)
         with self._writer.as_default():
@@ -54,7 +55,10 @@ class Network:
     def predict(self, dataset, args):
         # TODO: Predict method should return a list/np.ndaddar, each element
         # being the predicted language for a sencence.
-        raise NotImplementedError()
+        batch = datast.batches(args.batch_size)
+        ret = self.model([batch.word_ids, batch.charseq_ids, batch.charseqs, batch.levels], training=False)
+        print(ret.shape)
+        print(ret)
 
     def parse_sentences(self,dataset):
         dot_key = dataset._vocabulary_maps['chars']['.']
@@ -84,11 +88,11 @@ if __name__ == "__main__":
 
     # Parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size", default=8, type=int, help="Batch size.")
+    parser.add_argument("--batch_size", default=20, type=int, help="Batch size.")
     parser.add_argument("--epochs", default=1, type=int, help="Number of epochs.")
-    parser.add_argument("--threads", default=1, type=int, help="Maximum number of threads to use.")
+    parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
     parser.add_argument("--cle_dim", default=32, type=int, help="CLE embedding dimension.")
-    parser.add_argument("--rnn_cell_dim", default=20, type=int, help="RNN cell dimension.")
+    parser.add_argument("--rnn_cell_dim", default=128, type=int, help="RNN cell dimension.")
     parser.add_argument("--we_dim", default=32, type=int, help="Word embedding dimension.")
     args = parser.parse_args()
 
@@ -124,7 +128,7 @@ if __name__ == "__main__":
     network = Network(args)
     for epoch in range(args.epochs):
         network.train_epoch(nli.train, args)
-    """
+    
     # Generate test set annotations, but in args.logdir to allow parallel execution.
     out_path = "nli_competition_test.txt"
     if os.path.isdir(args.logdir): out_path = os.path.join(args.logdir, out_path)
@@ -132,4 +136,3 @@ if __name__ == "__main__":
         languages = network.predict(nli.test, args)
         for language in languages:
             print(nli.test.vocabulary("languages")[language], file=out_file)
-    """
