@@ -42,7 +42,7 @@ class Network:
             #print(probabilities.shape, targets.shape)
             #print(targets, pred, loss)
             loss = self._loss(targets,pred)
-            print(targets, pred, loss)
+            print(loss)
             gradients = tape.gradient(loss, self.model.variables)
             self._optimizer.apply_gradients(zip(gradients, self.model.variables))
 
