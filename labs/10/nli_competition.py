@@ -10,7 +10,7 @@ class Network:
 
         self._writer = tf.summary.create_file_writer(args.logdir, flush_millis=10 * 1000)
 
-        #TEST - ARCHITECTURE1
+        #TEST - ARCHITECTURE 1
         #inputs
         word_ids = tf.keras.layers.Input(shape=(None,), dtype=tf.int32)
         charseq_ids = tf.keras.layers.Input(shape=(None,), dtype=tf.int32)
@@ -21,28 +21,73 @@ class Network:
         embedded_chars = tf.keras.layers.Embedding(input_dim=args.num_chars, output_dim=args.cle_dim, mask_zero=True)(charseqs)
         gru_chars = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(args.cle_dim,return_sequences=False), merge_mode="concat")(embedded_chars)
         replace = tf.keras.layers.Lambda(lambda args: tf.gather(*args))([gru_chars, charseq_ids])
+
+        #lvl embedding
+        em_lvl = tf.keras.layers.Embedding(input_dim = args.num_levels, output_dim=256, mask_zero=False)(lvl)
+        em_lvl = tf.keras.layers.Flatten()(em_lvl)
+
         #word lvl embedding
         embedded_words = tf.keras.layers.Embedding(input_dim=args.num_words, output_dim=args.we_dim, mask_zero=True)(word_ids)
+
         #concatanate
         concat = tf.keras.layers.Concatenate()([embedded_words, replace])
         hidden = tf.keras.layers.Bidirectional(getattr(tf.keras.layers,"LSTM")(args.rnn_cell_dim,return_sequences=False), merge_mode="concat")(concat)
-        hidden = tf.keras.layers.Dense(1024 , activation='relu')(hidden)
+        hidden = tf.keras.layers.Dense(256, activation='relu')(hidden)
+        hidden = tf.keras.layers.Concatenate(axis=-1)([hidden, em_lvl])
+        hidden = tf.keras.layers.Dense(256, activation="relu")(hidden)
+        hidden = tf.keras.layers.Dropout(rate=0.5)(hidden)
         out = tf.keras.layers.Dense(args.num_languages, activation="softmax")(hidden)
-        self.model = tf.keras.Model(inputs=[word_ids, charseq_ids, charseqs,lvl], outputs=out)
+
+        self.model = tf.keras.Model(inputs=[word_ids, charseq_ids, charseqs, lvl], outputs=out)
+
+        # TEST - ARCHITECTURE 2
+        # word_ids = tf.keras.layers.Input(shape=(None,), dtype=tf.int32)
+        # embedded_words = tf.keras.layers.Embedding(input_dim=args.num_words, output_dim=args.we_dim, mask_zero=True)(
+        #     word_ids)
+        # hidden = tf.keras.layers.Bidirectional(
+        #     getattr(tf.keras.layers, "LSTM")(args.rnn_cell_dim, return_sequences=False), merge_mode="sum")(embedded_words)
+        # hidden = tf.keras.layers.Dense(512, activation='relu')(hidden)
+        # hidden = tf.keras.layers.Dropout(rate=0.5)(hidden)
+        # out = tf.keras.layers.Dense(args.num_languages, activation="softmax")(hidden)
+        # self.model = tf.keras.Model(inputs=word_ids, outputs=out)
+
+        # TEST - ARCHITECTURE 3
+        # charseq_ids = tf.keras.layers.Input(shape=(None,), dtype=tf.int32)
+        # charseqs = tf.keras.layers.Input(shape=(None,), dtype=tf.int32)
+        # embedded_chars = tf.keras.layers.Embedding(input_dim=args.num_chars, output_dim=args.cle_dim, mask_zero=True)(
+        #     charseqs)
+        # gru_chars = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(args.cle_dim,return_sequences=False), merge_mode="sum")(embedded_chars)
+        # replace = tf.keras.layers.Lambda(lambda args: tf.gather(*args))([gru_chars, charseq_ids])
+        # hidden = tf.keras.layers.Bidirectional(getattr(tf.keras.layers,"LSTM")(args.rnn_cell_dim,return_sequences=False), merge_mode="sum")(replace)
+        # hidden = tf.keras.layers.Dense(512,"relu")(hidden)
+        # hidden = tf.keras.layers.Dropout(rate=0.5)(hidden)
+        # out = tf.keras.layers.Dense(args.num_languages, "softmax")(hidden)
+        # self.model = tf.keras.Model(inputs=[charseq_ids,charseqs],outputs=out)
+
         self._optimizer = tf.optimizers.Adam()
-        self._loss = tf.losses.SparseCategoricalCrossentropy()
-        self._metrics = tf.metrics.SparseCategoricalAccuracy()
+        # self._loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
+        self._loss = tf.keras.losses.CategoricalCrossentropy()
+        # self._metrics = tf.metrics.SparseCategoricalAccuracy()
+        self._metrics = tf.metrics.CategoricalCrossentropy()
     
-    def train_epoch(self, dataset, args):
+    def train_epoch(self, dataset, args, dev_dataset):
         for batch in dataset.batches(args.batch_size):
             self.train_batch([batch.word_ids, batch.charseq_ids, batch.charseqs, batch.levels],batch.languages)
-    
+            # self.train_batch(batch.word_ids,batch.languages)
+            # self.train_batch([batch.charseq_ids, batch.charseqs, batch.levels], batch.languages)
+            # for b in dev_dataset.batches(len(dev_dataset._languages)):
+                # dev_loss = self._loss(b.languages, self.model([b.word_ids, b.charseq_ids,
+                #                                        b.charseqs,b.levels],training=False))
+                # print('dev data loss = ', dev_loss)
+
+    def smooth_targets(self,targets):
+        return tf.one_hot(targets,depth=args.num_languages,on_value=0.99,off_value=0.01)
+
     def train_batch(self, inputs, targets):
+        t = self.smooth_targets(targets)
         with tf.GradientTape() as tape:
             pred = self.model(inputs, training=True)
-            #print(probabilities.shape, targets.shape)
-            #print(targets, pred)
-            loss = self._loss(targets,pred)
+            loss = self._loss(t, pred)
             gradients = tape.gradient(loss, self.model.variables)
             self._optimizer.apply_gradients(zip(gradients, self.model.variables))
         print(loss)
@@ -55,29 +100,10 @@ class Network:
     def predict(self, dataset, args):
         # TODO: Predict method should return a list/np.ndaddar, each element
         # being the predicted language for a sencence.
-        batch = datast.batches(args.batch_size)
+        batch = dataset.batches(args.batch_size)
         ret = self.model([batch.word_ids, batch.charseq_ids, batch.charseqs, batch.levels], training=False)
         print(ret.shape)
         print(ret)
-
-    def parse_sentences(self,dataset):
-        dot_key = dataset._vocabulary_maps['chars']['.']
-        essays = dataset._word_ids
-        for e in essays:
-            """
-            dots = 0
-            for element in e:
-                if element == dot_key:
-                    dots += 1
-            print(essays)
-            # print(dot_ixs)
-            """
-            #print(e)
-            print("------------------------")
-            for word in e:
-                print(dataset._charseq_ids[word])
-            break
-
 
 
 if __name__ == "__main__":
@@ -91,9 +117,9 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", default=20, type=int, help="Batch size.")
     parser.add_argument("--epochs", default=1, type=int, help="Number of epochs.")
     parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
-    parser.add_argument("--cle_dim", default=32, type=int, help="CLE embedding dimension.")
+    parser.add_argument("--cle_dim", default=128, type=int, help="CLE embedding dimension.")
     parser.add_argument("--rnn_cell_dim", default=128, type=int, help="RNN cell dimension.")
-    parser.add_argument("--we_dim", default=32, type=int, help="Word embedding dimension.")
+    parser.add_argument("--we_dim", default=128, type=int, help="Word embedding dimension.")
     args = parser.parse_args()
 
     # Fix random seeds and number of threads
@@ -111,23 +137,18 @@ if __name__ == "__main__":
 
     # Load the data
     nli = NLIDataset()
-    
-    #print(nli.train.vocabulary("languages"))
-    #print(nli.train.vocabulary("levels"))
-    #print(nli.train.vocabulary("prompts"))
-    #print(nli.train.vocabulary("chars"))
-    #print(nli.train.vocabulary("words"))
 
     args.num_levels = len(nli.train.vocabulary("levels"))
     args.num_languages = len(nli.train.vocabulary("languages"))
     args.num_chars = len(nli.train.vocabulary("chars"))
     args.num_words = len(nli.train.vocabulary("words"))
+    args.lvl_dim = 32
     
 
     # Create the network and train
     network = Network(args)
     for epoch in range(args.epochs):
-        network.train_epoch(nli.train, args)
+        network.train_epoch(nli.train, args, nli.dev)
     
     # Generate test set annotations, but in args.logdir to allow parallel execution.
     out_path = "nli_competition_test.txt"
