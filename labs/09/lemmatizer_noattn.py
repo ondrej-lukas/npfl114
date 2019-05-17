@@ -184,7 +184,7 @@ class Network:
         predictions, _, _ = DecoderPrediction(maximum_iterations=tf.shape(source_charseqs)[1] + 10)([self._model, source_states])
         return predictions
 
-    @tf.function(input_signature=[tf.TensorSpec(shape=[None, None], dtype=tf.int32)] * 4, autograph=False)
+    #@tf.function(input_signature=[tf.TensorSpec(shape=[None, None], dtype=tf.int32)] * 4, autograph=False)
     def evaluate_batch(self, source_charseq_ids, source_charseqs, target_charseq_ids, target_charseqs):
         # Predict
         predictions = self.predict_batch(source_charseq_ids, source_charseqs)
@@ -200,9 +200,9 @@ class Network:
         self._metrics_evaluation["accuracy"](equals)
 
     def evaluate(self, dataset, dataset_name, args):
-        for metric in self._metrics_evaluation.values():
-            metric.reset_states()
         for batch in dataset.batches(args.batch_size):
+            for metric in self._metrics_evaluation.values():
+                metric.reset_states()
             predictions = self.evaluate_batch(batch[dataset.FORMS].charseq_ids, batch[dataset.FORMS].charseqs,
                                               batch[dataset.LEMMAS].charseq_ids, batch[dataset.LEMMAS].charseqs)
 
