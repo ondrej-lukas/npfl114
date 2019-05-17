@@ -79,20 +79,45 @@ class Network:
         # self.model = tf.keras.Model(inputs=word_ids, outputs=out)
 
         # TEST - ARCHITECTURE 5
+        # charseq_ids = tf.keras.layers.Input(shape=(None,), dtype=tf.int32)
+        # charseqs = tf.keras.layers.Input(shape=(None,), dtype=tf.int32)
+        # embedded_chars = tf.keras.layers.Embedding(input_dim=args.num_chars, output_dim=args.cle_dim, mask_zero=True)(charseqs)
+        # gru_chars = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(args.cle_dim,return_sequences=False), merge_mode="concat")(embedded_chars)
+        # replace = tf.keras.layers.Lambda(lambda args: tf.gather(*args))([gru_chars, charseq_ids])
+        # hidden = tf.keras.layers.GRU(args.cle_dim, return_sequences=False)(replace)
+        # hidden = tf.keras.layers.Dense(500, kernel_initializer="glorot_uniform", activation="sigmoid")(hidden)
+        # hidden = tf.keras.layers.Dropout(0.5)(hidden)
+        # hidden = tf.keras.layers.Dense(300, kernel_initializer="glorot_uniform", activation="sigmoid")(hidden)
+        # hidden = tf.keras.layers.Dropout(0.5)(hidden)
+        # hidden = tf.keras.layers.Dense(100, kernel_initializer="glorot_uniform", activation="sigmoid")(hidden)
+        # hidden = tf.keras.layers.Dropout(0.5)(hidden)
+        # out = tf.keras.layers.Dense(args.num_languages, kernel_initializer="glorot_uniform", activation="softmax")(hidden)
+        # self.model = tf.keras.Model(inputs=[charseq_ids,charseqs], outputs=out)
+
+        # TEST - ARCHITECTURE 6
+        word_ids = tf.keras.layers.Input(shape=(None,), dtype=tf.int32)
         charseq_ids = tf.keras.layers.Input(shape=(None,), dtype=tf.int32)
         charseqs = tf.keras.layers.Input(shape=(None,), dtype=tf.int32)
-        embedded_chars = tf.keras.layers.Embedding(input_dim=args.num_chars, output_dim=args.cle_dim, mask_zero=True)(charseqs)
+
+        embedded_chars = tf.keras.layers.Embedding(input_dim=args.num_chars, output_dim=args.cle_dim, mask_zero=True)(
+            charseqs)
         gru_chars = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(args.cle_dim,return_sequences=False), merge_mode="concat")(embedded_chars)
         replace = tf.keras.layers.Lambda(lambda args: tf.gather(*args))([gru_chars, charseq_ids])
-        hidden = tf.keras.layers.GRU(args.cle_dim, return_sequences=False)(replace)
+        embedded_words = tf.keras.layers.Embedding(input_dim=args.num_words, output_dim=args.we_dim, mask_zero=True)(
+            word_ids)
+        concat = tf.keras.layers.Concatenate()([embedded_words, replace])
+        hidden = tf.keras.layers.Bidirectional(
+            getattr(tf.keras.layers, "GRU")(args.rnn_cell_dim, return_sequences=False), merge_mode="concat")(concat)
         hidden = tf.keras.layers.Dense(500, kernel_initializer="glorot_uniform", activation="sigmoid")(hidden)
         hidden = tf.keras.layers.Dropout(0.5)(hidden)
         hidden = tf.keras.layers.Dense(300, kernel_initializer="glorot_uniform", activation="sigmoid")(hidden)
         hidden = tf.keras.layers.Dropout(0.5)(hidden)
         hidden = tf.keras.layers.Dense(100, kernel_initializer="glorot_uniform", activation="sigmoid")(hidden)
         hidden = tf.keras.layers.Dropout(0.5)(hidden)
-        out = tf.keras.layers.Dense(args.num_languages, kernel_initializer="glorot_uniform", activation="softmax")(hidden)
-        self.model = tf.keras.Model(inputs=[charseq_ids,charseqs], outputs=out)
+        out = tf.keras.layers.Dense(args.num_languages, kernel_initializer="glorot_uniform", activation="softmax")(
+            hidden)
+
+        self.model = tf.keras.Model(inputs=[word_ids, charseq_ids, charseqs], outputs=out)
 
         self._optimizer = tf.optimizers.Adam()
         # self._loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
@@ -102,9 +127,9 @@ class Network:
     
     def train_epoch(self, dataset, args, dev_dataset):
         for batch in dataset.batches(args.batch_size):
-            # self.train_batch([batch.word_ids, batch.charseq_ids, batch.charseqs, batch.levels],batch.languages)
+            self.train_batch([batch.word_ids, batch.charseq_ids, batch.charseqs],batch.languages)
             # self.train_batch(batch.word_ids,batch.languages)
-            self.train_batch([batch.charseq_ids, batch.charseqs], batch.languages)
+            # self.train_batch([batch.charseq_ids, batch.charseqs], batch.languages)
             # for b in dev_dataset.batches(len(dev_dataset._languages)):
             #     dev_loss = self._loss(b.languages, self.model([b.charseq_ids,
             #                                            b.charseqs],training=False))
@@ -144,11 +169,11 @@ if __name__ == "__main__":
 
     # Parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size", default=50, type=int, help="Batch size.")
+    parser.add_argument("--batch_size", default=20, type=int, help="Batch size.")
     parser.add_argument("--epochs", default=50, type=int, help="Number of epochs.")
     parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
-    parser.add_argument("--cle_dim", default=128, type=int, help="CLE embedding dimension.")
-    parser.add_argument("--rnn_cell_dim", default=128, type=int, help="RNN cell dimension.")
+    parser.add_argument("--cle_dim", default=512, type=int, help="CLE embedding dimension.")
+    parser.add_argument("--rnn_cell_dim", default=200, type=int, help="RNN cell dimension.")
     parser.add_argument("--we_dim", default=512, type=int, help="Word embedding dimension.")
     args = parser.parse_args()
 
