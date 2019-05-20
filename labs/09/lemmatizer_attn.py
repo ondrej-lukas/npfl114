@@ -111,7 +111,7 @@ class Network:
                     self._model, self._source_encoded, self._targets = layer_inputs
 
                     # TODO(lemmatozer_noattn): Define `finished` as a vector of self.batch_size of `False` [see tf.fill].
-                    # TODO(lemmatizer_noattn): Define `inputs` as a vector of self.batch_size MorphoDataset.Factor.BOW [see tf.fill],
+                    # TODO(lemmatizer_noattn): Define `inputs` as a vector of self.batch_size of MorphoDataset.Factor.BOW [see tf.fill],
                     # embedded using self._model.target_embedding
                     finished = tf.fill([self.batch_size], False)
                     inputs = self._model.target_embedding(tf.fill([self.batch_size], MorphoDataset.Factor.BOW))
@@ -185,6 +185,7 @@ class Network:
             def batch_size(self):
                 # TODO(train_batch): Return batch size of self._source_encoded, using tf.shape
                 return tf.shape(self._source_encoded)[0]
+
             @property
             def output_size(self): return 1 # TODO(lemmatizer_noattn): Return 1 because we are returning directly the predictions
             @property
@@ -207,7 +208,7 @@ class Network:
                 self._model, self._source_encoded = layer_inputs
 
                 # TODO(lemmatizer_noattn)(train_batch): Define `finished` as a vector of self.batch_size of `False` [see tf.fill].
-                # TODO(lemmatizer_noattn)(train_batch): Define `inputs` as a vector of self.batch_size MorphoDataset.Factor.BOW [see tf.fill],
+                # TODO(lemmatizer_noattn)(train_batch): Define `inputs` as a vector of self.batch_size of MorphoDataset.Factor.BOW [see tf.fill],
                 # embedded using self._model.target_embedding
                 # TODO(train_batch): Define `states` as the last words from self._source_encoded
                 # TODO(train_batch): Pass `inputs` through `self._with_attention(inputs, states)`.
@@ -226,12 +227,15 @@ class Network:
                 # `output_type=tf.int32` parameter.
                 # TODO(lemmatizer_noattn): Define `next_inputs` by embedding the `outputs`
                 # TODO(lemmatizer_noattn): Define `finished` as True if `outputs` are EOW, False otherwise. [No == or !=].
+
+                
                 # TODO: Pass `inputs` through `self._with_attention(inputs, states)`.
                 outputs, [states] = self._model.target_rnn_cell(inputs=inputs, states=[states])
                 outputs = tf.math.argmax(self._model.target_output_layer(outputs), axis=1, output_type=tf.int32)
                 next_inputs = self._model.target_embedding(outputs)
                 next_inputs = self._with_attention(next_inputs,states)
                 finished = tf.equal(outputs, MorphoDataset.Factor.EOW)
+
                 return outputs, states, next_inputs, finished
 
         predictions, _, _ = DecoderPrediction(maximum_iterations=tf.shape(source_charseqs)[1] + 10)([self._model, source_encoded])
@@ -240,7 +244,8 @@ class Network:
     @tf.function(input_signature=[tf.TensorSpec(shape=[None, None], dtype=tf.int32)] * 4, autograph=False)
     def evaluate_batch(self, source_charseq_ids, source_charseqs, target_charseq_ids, target_charseqs):
         # Predict
-        predictions = self.predict_batch(source_charseq_ids, source_charseqs)
+
+
 
         # Append EOW to target_charseqs and copy them to corresponding places and flatten it
         target_charseqs = self._append_eow(target_charseqs)

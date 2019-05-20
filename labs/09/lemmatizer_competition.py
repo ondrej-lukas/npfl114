@@ -51,10 +51,6 @@ if __name__ == "__main__":
     # Fix random seeds and number of threads
     np.random.seed(42)
     tf.random.set_seed(42)
-    if args.recodex:
-        tf.keras.utils.get_custom_objects()["glorot_uniform"] = lambda: tf.initializers.glorot_uniform(seed=42)
-        tf.keras.utils.get_custom_objects()["orthogonal"] = lambda: tf.initializers.orthogonal(seed=42)
-        tf.keras.utils.get_custom_objects()["uniform"] = lambda: tf.initializers.RandomUniform(seed=42)
     tf.config.threading.set_inter_op_parallelism_threads(args.threads)
     tf.config.threading.set_intra_op_parallelism_threads(args.threads)
 
@@ -66,14 +62,13 @@ if __name__ == "__main__":
     ))
 
     # Load the data
-    morpho = MorphoDataset("czech_pdt", max_sentences=args.max_sentences)
+    morpho = MorphoDataset("czech_pdt")
 
     # Create the network and train
     network = Network(args,
                       num_source_chars=len(morpho.train.data[morpho.train.FORMS].alphabet),
                       num_target_chars=len(morpho.train.data[morpho.train.LEMMAS].alphabet))
-    for epoch in range(args.epochs):
-        network.train_epoch(morpho.train, args)
+    network.train(morpho, args)
 
     # Generate test set annotations, but in args.logdir to allow parallel execution.
     out_path = "lemmatizer_competition_test.txt"

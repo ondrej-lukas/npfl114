@@ -5,7 +5,7 @@ import tensorflow as tf
 from nli_dataset import NLIDataset
 
 class Network:
-    def __init__(self, args):
+    def __init__(self, nli, args):
         # TODO: Define a suitable model.
 
         self._writer = tf.summary.create_file_writer(args.logdir, flush_millis=10 * 1000)
@@ -201,10 +201,16 @@ if __name__ == "__main__":
     
 
     # Create the network and train
+<<<<<<< HEAD
     network = Network(args)
     for epoch in range(args.epochs):
         network.train_epoch(nli.train, args, nli.dev)
     
+=======
+    network = Network(nli, args)
+    network.train(nli, args)
+
+>>>>>>> 89b118ddffb210b89cde3b6fd15a5c315b8a631d
     # Generate test set annotations, but in args.logdir to allow parallel execution.
     out_path = "nli_competition_test.txt"
     if os.path.isdir(args.logdir): out_path = os.path.join(args.logdir, out_path)
