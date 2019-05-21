@@ -47,7 +47,7 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch_size", default=50, type=int, help="Number of episodes to train on.")
-    parser.add_argument("--episodes", default=5000, type=int, help="Training episodes.")
+    parser.add_argument("--episodes", default=1000, type=int, help="Training episodes.")
     parser.add_argument("--hidden_layer", default=512, type=int, help="Size of hidden layer.")
     parser.add_argument("--learning_rate", default=0.001, type=float, help="Learning rate.")
     parser.add_argument("--render_each", default=0, type=int, help="Render some episodes.")
@@ -91,7 +91,13 @@ if __name__ == "__main__":
                 state = next_state
 
             # TODO: Compute `returns` from the observed `rewards`.
-            returns = np.sum(rewards)
+            # returns = np.sum(rewards)
+            returns = []
+            for i in range(0,len(rewards)):
+                sum = 0
+                for ix in range(i,len(rewards)):
+                    sum += rewards[i]
+                returns.append(sum)
 
             batch_states += states
             batch_actions += actions
