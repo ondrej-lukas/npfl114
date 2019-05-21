@@ -2,7 +2,6 @@
 #bfc95faa-444e-11e9-b0fd-00505601122b
 #3da961ed-4364-11e9-b0fd-00505601122b
 import numpy as np
-
 import cart_pole_evaluator
 
 if __name__ == "__main__":
@@ -31,7 +30,7 @@ if __name__ == "__main__":
 
     for _ in range(args.episodes):
         # Perform episode
-        state = env.reset()
+        state = env.reset(start_evaluate=False)
         states, actions, rewards = [], [], []
         while True:
             if args.render_each and env.episode > 0 and env.episode % args.render_each == 0:
@@ -63,8 +62,8 @@ if __name__ == "__main__":
             # print(i)
             G = G + rewards[i]
             C[states[i],actions[i]] = C[states[i],actions[i]] + 1
-            Q[states[i], actions[i]] = C[states[i],actions[i]] + (1/C[states[i],actions[i]]) * (G - Q[states[i],actions[i]])
-
+            Q[states[i], actions[i]] = Q[states[i],actions[i]] + (1/C[states[i],actions[i]]) * (G - Q[states[i],actions[i]])
+    
     # Final evaluation
     while True:
         state, done = env.reset(True), False
