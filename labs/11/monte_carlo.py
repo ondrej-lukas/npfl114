@@ -9,7 +9,7 @@ if __name__ == "__main__":
     # Parse arguments
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--episodes", default=1, type=int, help="Training episodes.")
+    parser.add_argument("--episodes", default=1000, type=int, help="Training episodes.")
     parser.add_argument("--epsilon", default=0.1, type=float, help="Exploration factor.")
     parser.add_argument("--render_each", default=0, type=int, help="Render some episodes.")
     args = parser.parse_args()
@@ -57,8 +57,13 @@ if __name__ == "__main__":
                 break
 
         # TODO: Compute returns from the observed rewards.
-
         # TODO: Update Q and C
+        G = 0
+        for i in range(len(states)-1,-1, -1):
+            # print(i)
+            G = G + rewards[i]
+            C[states[i],actions[i]] = C[states[i],actions[i]] + 1
+            Q[states[i], actions[i]] = C[states[i],actions[i]] + (1/C[states[i],actions[i]]) * (G - Q[states[i],actions[i]])
 
     # Final evaluation
     while True:
