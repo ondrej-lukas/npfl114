@@ -8,7 +8,7 @@ import cart_pole_evaluator
 
 
 def loss(y_true, y_pred):
-    return -tf.reduce_mean(tf.log(y_pred) * y_true)
+    return -tf.reduce_mean(tf.math.log(y_pred) * y_true)
 
 
 class Network:
@@ -32,7 +32,7 @@ class Network:
         states, actions, returns = np.array(states), np.array(actions), np.array(returns)
 
         # TODO: Train the model using the states, actions and observed returns.
-        raise NotImplementedError()
+        self.model.fit(states,actions)
 
     def predict(self, states):
         states = np.array(states)
@@ -46,10 +46,10 @@ if __name__ == "__main__":
     # Parse arguments
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size", default=10, type=int, help="Number of episodes to train on.")
-    parser.add_argument("--episodes", default=1000, type=int, help="Training episodes.")
-    parser.add_argument("--hidden_layer", default=128, type=int, help="Size of hidden layer.")
-    parser.add_argument("--learning_rate", default=0.01, type=float, help="Learning rate.")
+    parser.add_argument("--batch_size", default=50, type=int, help="Number of episodes to train on.")
+    parser.add_argument("--episodes", default=5000, type=int, help="Training episodes.")
+    parser.add_argument("--hidden_layer", default=512, type=int, help="Size of hidden layer.")
+    parser.add_argument("--learning_rate", default=0.001, type=float, help="Learning rate.")
     parser.add_argument("--render_each", default=0, type=int, help="Render some episodes.")
     parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
     args = parser.parse_args()
@@ -80,7 +80,7 @@ if __name__ == "__main__":
                 probabilities = network.predict([state])[0]
                 # TODO: Compute `action` according to the distribution returned by the network.
                 # The `np.random.choice` method comes handy.
-                action = np.random.choice(env.actions, probabilities)
+                action = np.random.choice(env.actions, 1, p=probabilities)[0]
 
                 next_state, reward, done, _ = env.step(action)
 
@@ -91,6 +91,7 @@ if __name__ == "__main__":
                 state = next_state
 
             # TODO: Compute `returns` from the observed `rewards`.
+            returns = np.sum(rewards)
 
             batch_states += states
             batch_actions += actions
