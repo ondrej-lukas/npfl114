@@ -6,6 +6,11 @@ import tensorflow as tf
 
 import cart_pole_evaluator
 
+
+def loss(y_true, y_pred):
+    return -tf.reduce_mean(tf.log(y_pred) * y_true)
+
+
 class Network:
     def __init__(self, env, args):
         # TODO: Define suitable model. The inputs have shape `env.state_shape`,
@@ -17,7 +22,11 @@ class Network:
         # methods.
         #
         # Use Adam optimizer with given `args.learning_rate`.
-        raise NotImplementedError()
+
+        self.model = tf.keras.Sequential()
+        self.model.add(tf.keras.layers.Dense(args.hidden_layer,"relu"))
+        self.model.add(tf.keras.layers.Dense(env.actions,"softmax"))
+        self.model.compile(optimizer=tf.optimizers.Adam(args.learning_rate), loss=loss)
 
     def train(self, states, actions, returns):
         states, actions, returns = np.array(states), np.array(actions), np.array(returns)
@@ -29,19 +38,20 @@ class Network:
         states = np.array(states)
 
         # TODO: Predict distribution over actions for the given input states
-        raise NotImplementedError()
+        predictions = self.model.predict(states)
+        return predictions
 
 
 if __name__ == "__main__":
     # Parse arguments
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size", default=None, type=int, help="Number of episodes to train on.")
-    parser.add_argument("--episodes", default=None, type=int, help="Training episodes.")
-    parser.add_argument("--hidden_layer", default=None, type=int, help="Size of hidden layer.")
+    parser.add_argument("--batch_size", default=10, type=int, help="Number of episodes to train on.")
+    parser.add_argument("--episodes", default=1000, type=int, help="Training episodes.")
+    parser.add_argument("--hidden_layer", default=128, type=int, help="Size of hidden layer.")
     parser.add_argument("--learning_rate", default=0.01, type=float, help="Learning rate.")
     parser.add_argument("--render_each", default=0, type=int, help="Render some episodes.")
-    parser.add_argument("--threads", default=1, type=int, help="Maximum number of threads to use.")
+    parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
     args = parser.parse_args()
 
     # Fix random seed
@@ -70,6 +80,7 @@ if __name__ == "__main__":
                 probabilities = network.predict([state])[0]
                 # TODO: Compute `action` according to the distribution returned by the network.
                 # The `np.random.choice` method comes handy.
+                action = np.random.choice(env.actions, probabilities)
 
                 next_state, reward, done, _ = env.step(action)
 
