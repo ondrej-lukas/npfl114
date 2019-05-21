@@ -9,8 +9,8 @@ if __name__ == "__main__":
     # Parse arguments
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--episodes", default=None, type=int, help="Training episodes.")
-    parser.add_argument("--epsilon", default=None, type=float, help="Exploration factor.")
+    parser.add_argument("--episodes", default=1, type=int, help="Training episodes.")
+    parser.add_argument("--epsilon", default=0.1, type=float, help="Exploration factor.")
     parser.add_argument("--render_each", default=0, type=int, help="Render some episodes.")
     args = parser.parse_args()
 
@@ -26,6 +26,8 @@ if __name__ == "__main__":
     #   representing estimated Q value of a given (state, action) pair.
     # - Create C, a zero-filled NumPy array with shape [env.states, env.actions],
     #   representing number of observed returns of a given (state, action) pair.
+    Q = np.zeros([env.states, env.actions])
+    C = np.zeros([env.states, env.actions])
 
     for _ in range(args.episodes):
         # Perform episode
@@ -38,6 +40,11 @@ if __name__ == "__main__":
             # TODO: Compute `action` using epsilon-greedy policy. Therefore,
             # with probability of args.epsilon, use a random actions (there are env.actions of them),
             # otherwise, choose and action with maximum Q[state, action].
+            rand = np.random.uniform(0,1)
+            if rand <= args.epsilon:
+                action = np.random.randint(0,env.actions)
+            else:
+                action = np.argmax(Q[state, :])
 
             next_state, reward, done, _ = env.step(action)
 
