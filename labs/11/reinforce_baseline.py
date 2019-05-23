@@ -14,7 +14,19 @@ class Network:
         # one output (using a dense layer without activation).
         #
         # Use Adam optimizer with given `args.learning_rate` for both models.
-        raise NotImplementedError()
+        self.model = tf.keras.Sequential()
+        self.model.add(tf.keras.layers.InputLayer(input_shape=env.state_shape))
+        self.model.add(tf.keras.layers.Dense(args.hidden_layer, "relu"))
+        self.model.add(tf.keras.layers.Dense(env.actions, "softmax"))
+        self.model.compile(optimizer=tf.optimizers.Adam(args.learning_rate),
+                           loss=tf.keras.losses.SparseCategoricalCrossentropy(),
+                           metrics=[tf.keras.metrics.SparseCategoricalAccuracy()])
+
+        self.baseline = tf.keras.Sequential()
+        self.baseline.add(tf.keras.layers.Dense(args.hidden_layer,"relu"))
+        self.baseline.add(tf.keras.layers.Dense(1))
+        self.baseline.compile(optimizer=tf.optimizers.Adam(args.learning_rate),
+                           loss=tf.keras.losses.MSE())
 
     def train(self, states, actions, returns):
         states, actions, returns = np.array(states), np.array(actions), np.array(returns)
@@ -25,26 +37,30 @@ class Network:
         # - train the policy model, using `returns - predicted_baseline` as weights
         #   in the sparse crossentropy loss
         # - train the `baseline` model to predict `returns`
-        raise NotImplementedError()
+        baseline = self.baseline.predict_on_batch(states)
+        weights = returns - baseline
+        self.model.train_on_batch(states, actions, sample_weight=weights)
+        self.baseline.train_on_batch(states, returns)
 
     def predict(self, states):
         states = np.array(states)
 
         # TODO: Predict distribution over actions for the given input states. Return
         # only the probabilities, not the baseline.
-        raise NotImplementedError()
+        predictions = self.model.predict_on_batch(states)
+        return predictions
 
 
 if __name__ == "__main__":
     # Parse arguments
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size", default=None, type=int, help="Number of episodes to train on.")
-    parser.add_argument("--episodes", default=None, type=int, help="Training episodes.")
-    parser.add_argument("--hidden_layer", default=None, type=int, help="Size of hidden layer.")
-    parser.add_argument("--learning_rate", default=0.01, type=float, help="Learning rate.")
+    parser.add_argument("--batch_size", default=10, type=int, help="Number of episodes to train on.")
+    parser.add_argument("--episodes", default=500, type=int, help="Training episodes.")
+    parser.add_argument("--hidden_layer", default=16, type=int, help="Size of hidden layer.")
+    parser.add_argument("--learning_rate", default=0.02, type=float, help="Learning rate.")
     parser.add_argument("--render_each", default=0, type=int, help="Render some episodes.")
-    parser.add_argument("--threads", default=1, type=int, help="Maximum number of threads to use.")
+    parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
     args = parser.parse_args()
 
     # Fix random seed
@@ -73,7 +89,7 @@ if __name__ == "__main__":
                 probabilities = network.predict([state])[0]
                 # TODO(reinforce): Compute `action` according to the distribution returned by the network.
                 # The `np.random.choice` method comes handy.
-
+                action = np.random.choice(env.actions, 1, p=probabilities)[0]
                 next_state, reward, done, _ = env.step(action)
 
                 states.append(state)
@@ -83,6 +99,13 @@ if __name__ == "__main__":
                 state = next_state
 
             # TODO(reinforce): Compute `returns` from the observed `rewards`.
+            returns = []
+            last_ret = 0
+            for i in range(len(rewards) - 1, -1, -1):
+                new_ret = rewards[i] + last_ret
+                returns.append(new_ret)
+                last_ret = new_ret
+            returns = list(reversed(returns))
 
             batch_states += states
             batch_actions += actions
