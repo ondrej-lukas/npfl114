@@ -26,7 +26,7 @@ class Network:
         self.baseline.add(tf.keras.layers.Dense(args.hidden_layer,"relu"))
         self.baseline.add(tf.keras.layers.Dense(1))
         self.baseline.compile(optimizer=tf.optimizers.Adam(args.learning_rate),
-                           loss=tf.keras.losses.MSE())
+                           loss="mse")
 
     def train(self, states, actions, returns):
         states, actions, returns = np.array(states), np.array(actions), np.array(returns)
@@ -38,7 +38,7 @@ class Network:
         #   in the sparse crossentropy loss
         # - train the `baseline` model to predict `returns`
         baseline = self.baseline.predict_on_batch(states)
-        weights = returns - baseline
+        weights = returns - baseline.flatten()
         self.model.train_on_batch(states, actions, sample_weight=weights)
         self.baseline.train_on_batch(states, returns)
 
@@ -56,8 +56,8 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch_size", default=10, type=int, help="Number of episodes to train on.")
-    parser.add_argument("--episodes", default=500, type=int, help="Training episodes.")
-    parser.add_argument("--hidden_layer", default=16, type=int, help="Size of hidden layer.")
+    parser.add_argument("--episodes", default=1000, type=int, help="Training episodes.")
+    parser.add_argument("--hidden_layer", default=64, type=int, help="Size of hidden layer.")
     parser.add_argument("--learning_rate", default=0.02, type=float, help="Learning rate.")
     parser.add_argument("--render_each", default=0, type=int, help="Render some episodes.")
     parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
