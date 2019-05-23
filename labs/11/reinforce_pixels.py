@@ -11,19 +11,46 @@ class Network:
         # TODO: Define suitable model, similarly to `reinforce` or `reinforce_with_baseline`.
         #
         # Use Adam optimizer with given `args.learning_rate`.
+        input_size = [80,80,3]
+        inputs = tf.keras.layers.Input(input_size)
+
+        hidden = tf.keras.layers.Conv2D(filters=16, kernel_size=(5,5), strides=(2,2), padding="same", activation=None)(inputs)
+        hidden = tf.keras.layers.BatchNormalization()(hidden)
+        hidden = tf.keras.layers.ReLU()(hidden)
+        hidden = tf.keras.layers.MaxPool2D(pool_size=(2,2))(hidden)
+
+        hidden = tf.keras.layers.Conv2D(filters=64, kernel_size=(3,3), strides=(1,1), padding="same", activation=None)(hidden)
+        hidden = tf.keras.layers.BatchNormalization()(hidden)
+        hidden = tf.keras.layers.ReLU()(hidden)
+        hidden = tf.keras.layers.MaxPool2D(pool_size=(2,2))(hidden)
+
+        hidden = tf.keras.layers.Conv2D(filters=1, kernel_size=(3,3), strides=(2,2), padding="same", activation=None)(hidden)
+        hidden = tf.keras.layers.BatchNormalization()(hidden)
+        hidden = tf.keras.layers.ReLU()(hidden)
+        hidden = tf.keras.layers.MaxPool2D(pool_size=(2,2))(hidden)
+        hidden = tf.keras.layers.Flatten()(hidden)
+        hidden = tf.keras.layers.Dense(args.hidden_layer, activation="relu")(hidden)
+        output = tf.keras.layers.Dense(env.actions, activation="softmax")(hidden)
+        self.model = tf.keras.Model(inputs=inputs, outputs=output)
+
+
+
+        """
         self.model = tf.keras.Sequential()
-        self.model.add(tf.keras.layers.Conv2D(filters=16,kernel_size=(3,3)))
+        self.model.add(tf.keras.layers.Conv2D(filters=32,kernel_size=(4,4), strides=(2,2), padding="same"))
         self.model.add(tf.keras.layers.MaxPool2D(pool_size=(2,2)))
-        self.model.add(tf.keras.layers.Conv2D(filters=32,kernel_size=(3,3)))
+        self.model.add(tf.keras.layers.Conv2D(filters=64,kernel_size=(4,4), strides=(2,2), padding="same"))
         self.model.add(tf.keras.layers.MaxPool2D(pool_size=(2,2)))
-        self.model.add(tf.keras.layers.Dropout(rate=0.7))
-        self.model.add(tf.keras.layers.Conv2D(filters=1,kernel_size=(3,3)))
+        self.model.add(tf.keras.layers.Dropout(rate=0.3))
+        #self.model.add(tf.keras.layers.Conv2D(filters=1,kernel_size=(3,3)))
         self.model.add(tf.keras.layers.Flatten())
 
         # ???
-
+        #batchnorm?
+        #residual connection
         self.model.add(tf.keras.layers.Dense(args.hidden_layer, "relu"))
         self.model.add(tf.keras.layers.Dense(env.actions, "softmax"))
+        """
         self.model.compile(optimizer=tf.optimizers.Adam(args.learning_rate),
                            loss=tf.keras.losses.SparseCategoricalCrossentropy(),
                            metrics=[tf.keras.metrics.SparseCategoricalAccuracy()])
@@ -47,12 +74,12 @@ if __name__ == "__main__":
     # Parse arguments
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size", default=10, type=int, help="Number of episodes to train on.")
+    parser.add_argument("--batch_size", default=30, type=int, help="Number of episodes to train on.")
     parser.add_argument("--episodes", default=500, type=int, help="Training episodes.")
     parser.add_argument("--hidden_layer", default=128, type=int, help="Size of hidden layer.")
     parser.add_argument("--learning_rate", default=0.001, type=float, help="Learning rate.")
     parser.add_argument("--render_each", default=0, type=int, help="Render some episodes.")
-    parser.add_argument("--threads", default=1, type=int, help="Maximum number of threads to use.")
+    parser.add_argument("--threads", default=0, type=int, help="Maximum number of threads to use.")
     args = parser.parse_args()
 
     # Fix random seed
